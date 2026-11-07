@@ -1,7 +1,10 @@
 import { sql } from "drizzle-orm";
+import { connection } from "next/server";
 import { getDb } from "@/lib/db/client";
 
 export async function GET() {
+  // Must run per request, never at build time.
+  await connection();
   try {
     await getDb().execute(sql`select 1`);
     return Response.json({ status: "ok" });
