@@ -1,0 +1,24 @@
+# Local development database only. Production is defined in deploy/.
+name: mysignalchain-local
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_USER: mysignalchain
+      POSTGRES_PASSWORD: mysignalchain
+      POSTGRES_DB: mysignalchain
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      # Postgres 18 images keep data in a versioned folder under this path.
+      - postgres-data:/var/lib/postgresql
+      - ./docker/create-test-database.sql:/docker-entrypoint-initdb.d/create-test-database.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mysignalchain -d mysignalchain"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres-data:
