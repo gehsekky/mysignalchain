@@ -64,26 +64,28 @@ One TypeScript codebase on Next.js and Postgres keeps the build simple for a sol
 
 ### How infrastructure is split
 
-The existing `gehsekky-infra` repo (Terraform, state in S3, plan on PR, apply on merge to `main`, us-east-1) owns all AWS resources. The `mysignalchain` repo owns the application, its Docker image and its deploy workflow.
+The existing `gehsekky-infra` repo (Terraform, state in S3, applied by CI on every push to `main`, us-east-1; changes are committed straight to `main` after a local `terraform plan`) owns all AWS resources and the shared front door on the instance. The `mysignalchain` repo owns the application, its Docker image and its deploy workflow.
 
 | Owned by | Resources |
 | --- | --- |
 | `gehsekky-infra` (Terraform) | Route 53 zone for mysignalchain.com (`prevent_destroy`), CAA records allowing Amazon and Let's Encrypt, ACM certificate and CloudFront for the images subdomain, S3 buckets for images and backups, ECR repository, EBS data volume and snapshot schedule, additions to the instance role, SES domain identity with DKIM, custom MAIL FROM, SPF and DMARC records, AWS Budgets alert, the OIDC deploy role, and outputs the app repo needs |
-| `mysignalchain` repo | Next.js and Postgres containers, Compose file, Nginx site config, backup job, deploy workflow, secrets references |
+| `gehsekky-infra` (`host/edge/`, plain files, not Terraform) | The shared Nginx proxy (`edge-nginx`): its Compose file, base config, the Certbot reload hook and an install script that checks the config before reloading |
+| `mysignalchain` repo | Next.js and Postgres containers, Compose file, Nginx site file, backup job, deploy workflow, secrets references |
+| `gehsekky/pansori` repo | Pansori's containers and its own Nginx site file |
 
 Details to get right:
 
 - **Email records differ from your other domains.** gehsekky.com and pansorirpg.com publish "sends no mail" records (null MX, `v=spf1 -all`, DMARC `p=reject`). Don't copy that here: mysignalchain.com sends notification email through SES. Use SES's DKIM CNAMEs, `v=spf1 include:amazonses.com -all` on the MAIL FROM subdomain, and start DMARC at `p=none` with reporting, tightening it once mail flows cleanly.
 - **The instance is shared with Pansori.** A crash, memory leak or bad deploy here must not take Pansori down. Set container memory and CPU limits, add swap, and never run builds on the instance.
-- **Nginx is shared.** The `pansori-nginx` container already owns ports 80 and 443, and its config lives in the `gehsekky/pansori` repo. A one-time change there, made in M0, adds `include /etc/nginx/sites/*.conf;` to its config, mounts a host folder at that path, and joins an external Docker network shared with this app. This repo then owns its own site file in that folder. Neither Postgres container joins the shared network. Restarting Pansori to pick this up causes a brief outage.
+- **Nginx is shared, so it belongs to neither app.** Until M0, the `pansori-nginx` container in Pansori's Compose project owned ports 80 and 443. M0 replaces it with an `edge-nginx` container in its own Compose project (`/opt/edge` on the host), defined in `gehsekky-infra`. Its base config rejects unknown hostnames and includes `/etc/nginx/sites/*.conf`; each app keeps its own site file in its repo, copied to `/opt/edge/sites/`. Apps reach the proxy over an external Docker network named `edge`, created once on the host. Pansori's backend and frontend join it; neither Postgres container does. A Pansori deploy therefore never restarts the proxy. The switch causes one brief Pansori outage.
 - **Our site can't be allowed to stop Nginx.** Nginx won't start if an upstream can't be resolved or a certificate file is missing, and that would take Pansori down too. Resolve the upstream per request, using Docker's DNS (`resolver 127.0.0.11`) and a variable in `proxy_pass`. Run `nginx -t` before every reload.
-- **Certificates use the existing renewal setup.** Certbot runs on the host with a webroot at `/var/www/certbot`, a daily `certbot-renew` timer and a hook that reloads Nginx. The first time, DNS must point at the instance and the site file must serve only port 80 until certbot has issued the certificate; the HTTPS block is added after that. Set the same reload hook on the new certificate.
-- **Pansori's deploy prunes the whole host.** It runs `docker system prune -af`, which removes every stopped container, unused network and image not in use, but not volumes. So the shared network must be external, a stopped mysignalchain container will be deleted, and rollback must pull its image from ECR. Our deploy redeploys if its container is missing, removes only its own old images, and never runs a system-wide prune.
+- **Certificates use the existing renewal setup.** Certbot runs on the host with a webroot at `/var/www/certbot`, a daily `certbot-renew` timer and a hook that reloads Nginx. The first time, DNS must point at the instance and the site file must serve only port 80 until certbot has issued the certificate; the HTTPS block is added after that. The reload is a Certbot deploy hook in `/etc/letsencrypt/renewal-hooks/deploy/`, so it applies to every certificate on the host and runs `nginx -t` before reloading `edge-nginx`.
+- **Pansori's deploy prunes the whole host.** It runs `docker system prune -af`, which removes every stopped container, unused network and image not in use, but not volumes. So the shared network must be external (it survives the prune because `edge-nginx` is always attached to it), a stopped mysignalchain container will be deleted, and rollback must pull its image from ECR. Our deploy redeploys if its container is missing, removes only its own old images, and never runs a system-wide prune.
 - **The instance role is shared.** An instance has only one IAM role, so both apps effectively share its permissions. Scope additions to `mysignalchain-*` resources and keep them to what the app needs.
 - **Backups are our job.** Nightly `pg_dump` to S3 with retention, plus scheduled EBS snapshots, so up to a day of data could be lost. Postgres upgrades are also ours to run.
 - **One deploy role, from `main` only.** It can push to the ECR repository and run the deploy through SSM on this instance, and nothing else.
 - **No preview environments.** CI tests each branch against a throwaway Postgres. Production is publicly reachable from M0, with no password gate; launch means announcing the site, not opening it.
-- **Order of work:** merge the Terraform change in `gehsekky-infra` first, set Porkbun's nameservers to the new zone's, then wire the outputs into the app repo's GitHub Actions variables, as with `gehsekky-app`.
+- **Order of work:** push the Terraform change in `gehsekky-infra` first, set Porkbun's nameservers to the new zone's, then wire the outputs into the app repo's GitHub Actions variables, as with `gehsekky-app`.
 
 ## Data model
 
@@ -284,12 +286,12 @@ Repo, tooling, database, auth and deploy pipeline.
 
 - [ ] Next.js + TypeScript (strict) app on the current Node LTS, with exact versions pinned, Tailwind and shadcn/ui set up, and lint, format and type-check scripts
 - [ ] Drizzle connected to Postgres, first migration runs, seed script exists
-- [ ] Shared Nginx folder and external Docker network added to `gehsekky/pansori`; mysignalchain.com served over HTTPS with a certificate on the existing renewal timer; tested that stopping this app doesn't stop Nginx or Pansori, and that this app survives a Pansori deploy
+- [ ] Shared Nginx moved out of `gehsekky/pansori` into an `edge` stack in `gehsekky-infra`, with an external `edge` Docker network and a site file per app; mysignalchain.com served over HTTPS with a certificate on the existing renewal timer; tested that stopping this app doesn't stop Nginx or Pansori, and that this app survives a Pansori deploy
 - [ ] Nightly `pg_dump` to S3 and EBS snapshots running, and a restore tested
 - [ ] Sign up and sign in with Google through Better Auth; required onboarding step for a unique handle, following the handle format and blocklist, and the 13+ check
 - [ ] CI runs lint, type-check, unit and end-to-end tests on every push
-- [ ] Deploy from `main` on mysignalchain.com: ARM image built in CI, pushed to ECR, started through SSM, health checked, with rollback to the previous image tag pulled from ECR; Pansori stays up throughout, apart from the one brief restart for the Nginx change
-- [ ] AWS foundation added to gehsekky-infra through its normal PR flow: Route 53 zone with nameservers delegated from Porkbun (a `mysignalchain_name_servers` output, like the existing ones), ECR repository, S3 buckets, CloudFront and ACM certificate for images, data volume, swap, instance role permissions, AWS Budgets alert, OIDC deploy role
+- [ ] Deploy from `main` on mysignalchain.com: ARM image built in CI, pushed to ECR, started through SSM, health checked, with rollback to the previous image tag pulled from ECR; Pansori stays up throughout, apart from the one brief outage when the proxy moves
+- [ ] AWS foundation added to gehsekky-infra: Route 53 zone with nameservers delegated from Porkbun (a `mysignalchain_name_servers` output, like the existing ones), ECR repository, S3 buckets, CloudFront and ACM certificate for images, data volume, swap, instance role permissions, AWS Budgets alert, OIDC deploy role
 - [ ] Rate limits on auth endpoints active from the first deploy, using Better Auth's rate limiter with its in-memory storage, which resets on restart
 - [ ] Until launch, every page sends `noindex` and shows a small banner saying this is a beta and data may be wiped
 - [ ] Local development runs against a local Postgres (Docker) on Ubuntu in WSL2; `CLAUDE.md` notes the environment so Claude Code uses bash, not PowerShell
