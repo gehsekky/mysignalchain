@@ -51,11 +51,13 @@ docker pull -q "$IMAGE" >/dev/null
 log "pulled $IMAGE (was: ${CURRENT:-none})"
 
 set_image() { printf 'APP_IMAGE=%s\nPREVIOUS_IMAGE=%s\n' "$1" "$2" > .env; }
+# Compose checks every variable in the file, even when starting only
+# Postgres, so the image must be set first.
+set_image "$IMAGE" "$CURRENT"
 
 # 3. Database, then migrations. Migrations must stay compatible with the
 # previous release, because a rollback doesn't undo them.
 docker compose up -d --wait postgres
-set_image "$IMAGE" "$CURRENT"
 docker compose run --rm --no-deps app node migrate.mjs
 
 # 4. Start the new app and wait for its health check; roll back if it fails.
