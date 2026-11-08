@@ -40,6 +40,21 @@ test("a logged-out visitor sees the sign-in option", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("the privacy policy is linked from the sign-in page and footer", async ({
+  page,
+}) => {
+  await page.goto("/sign-in");
+  await page
+    .getByRole("main")
+    .getByRole("link", { name: "privacy policy" })
+    .click();
+  await expect(page).toHaveURL(/\/privacy$/);
+  await expect(page.getByRole("heading", { name: "Privacy" })).toBeVisible();
+  await expect(
+    page.getByRole("contentinfo").getByRole("link", { name: "Privacy" }),
+  ).toHaveAttribute("href", "/privacy");
+});
+
 test("a new user must finish onboarding before using the site", async ({
   page,
 }) => {

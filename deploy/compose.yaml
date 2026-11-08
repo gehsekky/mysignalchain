@@ -1,0 +1,80 @@
+# Production stack on the shared pansori instance, at /opt/mysignalchain.
+# deploy/host/deploy.sh installs this file and writes the env files next to
+# it; don't edit them on the host.
+#
+# The instance is shared with Pansori, so every container has a memory limit,
+# and only the app joins the external `edge` network that the shared proxy
+# (edge-nginx, defined in gehsekky-infra) uses. Postgres stays private.
+name: mysignalchain
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    container_name: mysignalchain-postgres
+    restart: unless-stopped
+    env_file: postgres.env
+    environment:
+      POSTGRES_USER: mysignalchain
+      POSTGRES_DB: mysignalchain
+    # Sized for a small instance shared with another site.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - max_connections=30
+    volumes:
+      # The separate EBS volume mounted on the host; Postgres 18 keeps its
+      # data in a versioned folder under this path.
+      - /data/mysignalchain/postgres:/var/lib/postgresql
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mysignalchain -d mysignalchain"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging:
+      driver: awslogs
+      options:
+        awslogs-group: /mysignalchain/postgres
+        awslogs-region: us-east-1
+
+  app:
+    # Set in .env by deploy.sh: the ECR image for the commit being deployed.
+    image: ${APP_IMAGE:?APP_IMAGE is not set}
+    container_name: mysignalchain-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: app.env
+    environment:
+      NODE_OPTIONS: --max-old-space-size=320
+    networks:
+      - default
+      - edge
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://127.0.0.1:3000/api/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    logging:
+      driver: awslogs
+      options:
+        awslogs-group: /mysignalchain/app
+        awslogs-region: us-east-1
+
+networks:
+  edge:
+    external: true
