@@ -36,6 +36,28 @@ export function buildAuthOptions(
         ageCheckPassedAt: { type: "date", required: false, input: false },
       },
     },
+    account: {
+      // We never call Google's APIs after sign-in, so these tokens are
+      // unused. Encrypt them with BETTER_AUTH_SECRET so a database or backup
+      // leak can't expose working Google tokens.
+      encryptOAuthTokens: true,
+    },
+    databaseHooks: {
+      // encryptOAuthTokens covers access and refresh tokens but not the ID
+      // token, which carries the user's name, email and Google ID in plain
+      // text. We never read it, so don't store it.
+      account: {
+        create: {
+          before: async (account) => ({ data: { ...account, idToken: null } }),
+        },
+        update: {
+          before: async (account) =>
+            "idToken" in account
+              ? { data: { ...account, idToken: null } }
+              : undefined,
+        },
+      },
+    },
     advanced: {
       // Nginx overwrites this header, so clients can't spoof it.
       ipAddress: { ipAddressHeaders: ["x-real-ip"] },
