@@ -51,6 +51,9 @@ test("the privacy policy is linked from the sign-in page and footer", async ({
   await expect(page).toHaveURL(/\/privacy$/);
   await expect(page.getByRole("heading", { name: "Privacy" })).toBeVisible();
   await expect(
+    page.getByRole("link", { name: "gehsekky@gmail.com" }).first(),
+  ).toHaveAttribute("href", "mailto:gehsekky@gmail.com");
+  await expect(
     page.getByRole("contentinfo").getByRole("link", { name: "Privacy" }),
   ).toHaveAttribute("href", "/privacy");
 });

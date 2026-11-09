@@ -294,7 +294,7 @@ Repo, tooling, database, auth and deploy pipeline.
 - [x] AWS foundation added to gehsekky-infra: Route 53 zone with nameservers delegated from Porkbun (a `mysignalchain_name_servers` output, like the existing ones), ECR repository, S3 buckets, CloudFront and ACM certificate for images, data volume, swap, instance role permissions, AWS Budgets alert, OIDC deploy role
 - [x] Rate limits on auth endpoints active from the first deploy, using Better Auth's rate limiter with its in-memory storage, which resets on restart
 - [x] Until launch, every page sends `noindex` and shows a small banner saying this is a beta and data may be wiped
-- [ ] Draft privacy policy at `/privacy`, linked from a footer and the sign-in page, live with the first deploy (Google's consent screen links to it). It describes what the app does today: Google name, email and picture; handle; the 13+ result, not the birth date; a session cookie; each sign-in session's IP address and browser, deleted with the session (a scheduled job removes expired sessions); Google's access token stored encrypted and its ID token not stored, since the app never calls Google after sign-in; no ads, analytics or trackers; hosted on AWS in the US with backups kept 30 days; beta data may be wiped; deletion on request by email until self-service deletion arrives; not for under-13s. The final version comes in M7
+- [x] Draft privacy policy at `/privacy`, linked from a footer and the sign-in page, live with the first deploy (Google's consent screen links to it). It describes what the app does today: Google name, email and picture; handle; the 13+ result, not the birth date; a session cookie; each sign-in session's IP address and browser, deleted with the session (a scheduled job removes expired sessions); Google's access token stored encrypted and its ID token not stored, since the app never calls Google after sign-in; no ads, analytics or trackers; hosted on AWS in the US with backups kept 30 days; beta data may be wiped; deletion on request by email to the public contact address, gehsekky@gmail.com, until self-service deletion arrives; not for under-13s. The final version comes in M7
 - [x] Local development runs against a local Postgres (Docker) on Ubuntu in WSL2; `CLAUDE.md` notes the environment so Claude Code uses bash, not PowerShell
 
 ### M1 — Gear catalog
@@ -317,7 +317,7 @@ Users record the gear they own and upload photos.
 - [ ] Photo upload to S3 through presigned URLs with EXIF stripped, resized variants and moderation status
 - [ ] Every image stores source, license and attribution, and attribution displays where required
 - [ ] Only the uploader sees a photo until an admin approves it
-- [ ] Before uploads go live: DMCA designated agent registered, short draft terms published and a takedown contact listed
+- [ ] Before uploads go live: DMCA designated agent registered, short draft terms published and a takedown contact listed (the public contact address, gehsekky@gmail.com, unless a dedicated one replaces it)
 
 ### M3 — Signal chain editor and versions
 
@@ -433,7 +433,6 @@ Each can wait until the milestone that needs it.
 
 | Decision | Default in this plan | Needed by |
 | --- | --- | --- |
-| Public contact email (privacy requests, later takedowns) | None yet; possibly a dedicated Gmail account. The draft privacy page needs it | M0, before Google sign-in is used on mysignalchain.com |
 | Add email link sign-in before launch? | Decide at the polish review; if added, add a CAPTCHA with it to protect SES from bot sign-ups | M7 |
 | Catalog seeding source | Hand-entered starter set, then user submissions | M1 |
 | Does moving boxes create a version? | No, layout is separate | M3 |

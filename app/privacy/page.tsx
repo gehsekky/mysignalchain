@@ -4,11 +4,12 @@ export const metadata: Metadata = { title: "Privacy · mysignalchain" };
 
 // Draft for the beta. Keep it in step with what the code actually does; the
 // final version comes in M7 (see docs/PLAN.md).
-const LAST_UPDATED = "November 8, 2026";
+const LAST_UPDATED = "November 9, 2026";
+const CONTACT_EMAIL = "gehsekky@gmail.com";
 
 export default function PrivacyPage() {
   return (
-    <article className="mx-auto w-full max-w-2xl px-4 py-12 text-sm leading-6 [&_h2]:mt-8 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_li]:mt-1 [&_ul]:list-disc [&_ul]:pl-5">
+    <article className="mx-auto w-full max-w-2xl px-4 py-12 text-sm leading-6 [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_li]:mt-1 [&_ul]:list-disc [&_ul]:pl-5">
       <h1 className="text-2xl font-semibold tracking-tight">Privacy</h1>
       <p className="text-muted-foreground mt-1">
         Draft for the beta. Last updated {LAST_UPDATED}.
@@ -68,16 +69,19 @@ export default function PrivacyPage() {
       <h2>Deleting your account</h2>
       <p>
         Self-service account deletion and data export are on the way. Until
-        then, you can ask for your account to be deleted, and it will be removed
-        along with everything you created.
+        then, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> from
+        the address you sign in with, and your account will be removed along
+        with everything you created.
       </p>
 
       <h2>Children</h2>
       <p>The site isn&apos;t for anyone under 13.</p>
 
       <h2>Contact</h2>
-      {/* TODO: add the public contact address once chosen (open decision in docs/PLAN.md). */}
-      <p>A contact address for privacy requests will be listed here soon.</p>
+      <p>
+        For privacy questions or requests, email{" "}
+        <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+      </p>
     </article>
   );
 }
