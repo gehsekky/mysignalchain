@@ -42,6 +42,16 @@ umask 022
 install -m 0644 "$STAGE/compose.yaml" compose.yaml
 log "config written"
 
+# Nightly backup and expired-session cleanup (a systemd timer, so it runs
+# whatever happens to the containers).
+install -d -m 0755 bin
+install -m 0755 "$STAGE/host/backup.sh" "$STAGE/host/restore-test.sh" bin/
+install -m 0644 "$STAGE/host/mysignalchain-backup.service" \
+  "$STAGE/host/mysignalchain-backup.timer" /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable -q --now mysignalchain-backup.timer
+log "backup timer installed"
+
 # 2. Pull the new image. The previous one is pulled again on rollback, since
 # Pansori's deploy prunes images that no running container uses.
 CURRENT=$(sed -n 's/^APP_IMAGE=//p' .env 2>/dev/null || true)

@@ -38,3 +38,26 @@ Pushing to `main` deploys once CI passes (`.github/workflows/deploy.yml`):
 Migrations must stay compatible with the previous release, because a rollback doesn't undo them.
 
 The instance is shared with Pansori: never run host-wide Docker commands such as `docker system prune` there. The shared proxy is defined in `gehsekky-infra` under `host/edge/`.
+
+## Backups
+
+`deploy.sh` installs a systemd timer, `mysignalchain-backup.timer`, that runs `deploy/host/backup.sh` at 07:30 UTC each night. It deletes expired sessions and verification records, streams a `pg_dump` to `s3://mysignalchain-backups/postgres/` (kept 30 days), and publishes a `BackupSucceeded` metric. If no backup succeeds for 26 hours, the `mysignalchain-backup-missing` alarm sends an email. The data volume also gets a daily EBS snapshot at 08:00 UTC, kept 7 days.
+
+On the instance:
+
+```bash
+systemctl start mysignalchain-backup        # back up now
+journalctl -u mysignalchain-backup          # past runs
+bash /opt/mysignalchain/bin/restore-test.sh # restore the newest dump into a throwaway container and compare row counts
+```
+
+To restore production from a dump, stop the app, restore over the live database, then start the app:
+
+```bash
+cd /opt/mysignalchain
+aws s3 cp s3://mysignalchain-backups/<key> /root/restore.dump
+docker compose stop app
+docker exec -i mysignalchain-postgres pg_restore -U mysignalchain -d mysignalchain --clean --if-exists --exit-on-error < /root/restore.dump
+docker compose start app
+rm /root/restore.dump
+```
