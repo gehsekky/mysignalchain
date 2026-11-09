@@ -68,9 +68,9 @@ The existing `gehsekky-infra` repo (Terraform, state in S3, applied by CI on eve
 
 | Owned by | Resources |
 | --- | --- |
-| `gehsekky-infra` (Terraform) | Route 53 zone for mysignalchain.com (`prevent_destroy`), CAA records allowing Amazon and Let's Encrypt, ACM certificate and CloudFront for the images subdomain, S3 buckets for images and backups, ECR repository, EBS data volume and snapshot schedule, additions to the instance role, SES domain identity with DKIM, custom MAIL FROM, SPF and DMARC records, AWS Budgets alert, the OIDC deploy role, and outputs the app repo needs |
+| `gehsekky-infra` (Terraform) | Route 53 zone for mysignalchain.com (`prevent_destroy`), CAA records allowing Amazon and Let's Encrypt, ACM certificate and CloudFront for the images subdomain, S3 buckets for images and backups, ECR repository, EBS data volume and snapshot schedule, additions to the instance role, SES domain identity with DKIM, custom MAIL FROM, SPF and DMARC records, AWS Budgets alert, an email alert topic with host memory and status-check alarms (memory published by a timer in `host/metrics/`), the OIDC deploy role, and outputs the app repo needs |
 | `gehsekky-infra` (`host/edge/`, plain files, not Terraform) | The shared Nginx proxy (`edge-nginx`): its Compose file, base config, the Certbot reload hook and an install script that checks the config before reloading |
-| `mysignalchain` repo | Next.js and Postgres containers, Compose file, Nginx site file, backup job, deploy workflow, secrets references |
+| `mysignalchain` repo | Next.js and Postgres containers, Compose file, Nginx site file, backup job (a systemd timer installed by the deploy, which also deletes expired sessions), deploy workflow, secrets references. Its backup alarm is in `gehsekky-infra` |
 | `gehsekky/pansori` repo | Pansori's containers and its own Nginx site file |
 
 Details to get right:
@@ -284,18 +284,18 @@ The site is publicly reachable throughout development, and anyone who finds it i
 
 Repo, tooling, database, auth and deploy pipeline.
 
-- [ ] Next.js + TypeScript (strict) app on the current Node LTS, with exact versions pinned, Tailwind and shadcn/ui set up, and lint, format and type-check scripts
-- [ ] Drizzle connected to Postgres, first migration runs, seed script exists
-- [ ] Shared Nginx moved out of `gehsekky/pansori` into an `edge` stack in `gehsekky-infra`, with an external `edge` Docker network and a site file per app; mysignalchain.com served over HTTPS with a certificate on the existing renewal timer; tested that stopping this app doesn't stop Nginx or Pansori, and that this app survives a Pansori deploy
-- [ ] Nightly `pg_dump` to S3 and EBS snapshots running, and a restore tested
+- [x] Next.js + TypeScript (strict) app on the current Node LTS, with exact versions pinned, Tailwind and shadcn/ui set up, and lint, format and type-check scripts
+- [x] Drizzle connected to Postgres, first migration runs, seed script exists
+- [x] Shared Nginx moved out of `gehsekky/pansori` into an `edge` stack in `gehsekky-infra`, with an external `edge` Docker network and a site file per app; mysignalchain.com served over HTTPS with a certificate on the existing renewal timer; tested that stopping this app doesn't stop Nginx or Pansori, and that this app survives a Pansori deploy
+- [x] Nightly `pg_dump` to S3 and EBS snapshots running, and a restore tested
 - [ ] Sign up and sign in with Google through Better Auth; required onboarding step for a unique handle, following the handle format and blocklist, and the 13+ check
-- [ ] CI runs lint, type-check, unit and end-to-end tests on every push
-- [ ] Deploy from `main` on mysignalchain.com: ARM image built in CI, pushed to ECR, started through SSM, health checked, with rollback to the previous image tag pulled from ECR; Pansori stays up throughout, apart from the one brief outage when the proxy moves
-- [ ] AWS foundation added to gehsekky-infra: Route 53 zone with nameservers delegated from Porkbun (a `mysignalchain_name_servers` output, like the existing ones), ECR repository, S3 buckets, CloudFront and ACM certificate for images, data volume, swap, instance role permissions, AWS Budgets alert, OIDC deploy role
-- [ ] Rate limits on auth endpoints active from the first deploy, using Better Auth's rate limiter with its in-memory storage, which resets on restart
-- [ ] Until launch, every page sends `noindex` and shows a small banner saying this is a beta and data may be wiped
+- [x] CI runs lint, type-check, unit and end-to-end tests on every push
+- [x] Deploy from `main` on mysignalchain.com: ARM image built in CI, pushed to ECR, started through SSM, health checked, with rollback to the previous image tag pulled from ECR; Pansori stays up throughout, apart from the one brief outage when the proxy moves
+- [x] AWS foundation added to gehsekky-infra: Route 53 zone with nameservers delegated from Porkbun (a `mysignalchain_name_servers` output, like the existing ones), ECR repository, S3 buckets, CloudFront and ACM certificate for images, data volume, swap, instance role permissions, AWS Budgets alert, OIDC deploy role
+- [x] Rate limits on auth endpoints active from the first deploy, using Better Auth's rate limiter with its in-memory storage, which resets on restart
+- [x] Until launch, every page sends `noindex` and shows a small banner saying this is a beta and data may be wiped
 - [ ] Draft privacy policy at `/privacy`, linked from a footer and the sign-in page, live with the first deploy (Google's consent screen links to it). It describes what the app does today: Google name, email and picture; handle; the 13+ result, not the birth date; a session cookie; each sign-in session's IP address and browser, deleted with the session (a scheduled job removes expired sessions); Google's access token stored encrypted and its ID token not stored, since the app never calls Google after sign-in; no ads, analytics or trackers; hosted on AWS in the US with backups kept 30 days; beta data may be wiped; deletion on request by email until self-service deletion arrives; not for under-13s. The final version comes in M7
-- [ ] Local development runs against a local Postgres (Docker) on Ubuntu in WSL2; `CLAUDE.md` notes the environment so Claude Code uses bash, not PowerShell
+- [x] Local development runs against a local Postgres (Docker) on Ubuntu in WSL2; `CLAUDE.md` notes the environment so Claude Code uses bash, not PowerShell
 
 ### M1 — Gear catalog
 
