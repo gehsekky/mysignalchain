@@ -288,7 +288,7 @@ Repo, tooling, database, auth and deploy pipeline.
 - [x] Drizzle connected to Postgres, first migration runs, seed script exists
 - [x] Shared Nginx moved out of `gehsekky/pansori` into an `edge` stack in `gehsekky-infra`, with an external `edge` Docker network and a site file per app; mysignalchain.com served over HTTPS with a certificate on the existing renewal timer; tested that stopping this app doesn't stop Nginx or Pansori, and that this app survives a Pansori deploy
 - [x] Nightly `pg_dump` to S3 and EBS snapshots running, and a restore tested
-- [ ] Sign up and sign in with Google through Better Auth; required onboarding step for a unique handle, following the handle format and blocklist, and the 13+ check
+- [x] Sign up and sign in with Google through Better Auth; required onboarding step for a unique handle, following the handle format and blocklist, and the 13+ check
 - [x] CI runs lint, type-check, unit and end-to-end tests on every push
 - [x] Deploy from `main` on mysignalchain.com: ARM image built in CI, pushed to ECR, started through SSM, health checked, with rollback to the previous image tag pulled from ECR; Pansori stays up throughout, apart from the one brief outage when the proxy moves
 - [x] AWS foundation added to gehsekky-infra: Route 53 zone with nameservers delegated from Porkbun (a `mysignalchain_name_servers` output, like the existing ones), ECR repository, S3 buckets, CloudFront and ACM certificate for images, data volume, swap, instance role permissions, AWS Budgets alert, OIDC deploy role
