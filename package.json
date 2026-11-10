@@ -18,7 +18,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file=.env scripts/migrate.mjs",
     "db:seed": "tsx --env-file=.env scripts/seed.ts",
-    "build:migrate": "esbuild scripts/migrate.mjs --bundle --platform=node --format=esm --target=node26 --external:pg-native --outfile=dist/migrate.mjs --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\""
+    "catalog:sync": "tsx --env-file=.env scripts/sync-catalog.ts",
+    "build:migrate": "esbuild scripts/migrate.mjs --bundle --platform=node --format=esm --target=node26 --external:pg-native --outfile=dist/migrate.mjs --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
+    "build:sync": "esbuild scripts/sync-catalog.ts --bundle --platform=node --format=esm --target=node26 --external:pg-native --outfile=dist/sync-catalog.mjs --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\""
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",

@@ -11,7 +11,7 @@ COPY . .
 # Builds must not depend on secrets; auth and database settings are read at
 # request time (lib/env.ts).
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build && npm run build:migrate
+RUN npm run build && npm run build:migrate && npm run build:sync
 
 FROM node:26.13.0-alpine AS runtime
 WORKDIR /app
@@ -29,6 +29,7 @@ COPY --from=build --chown=node:node /app/.next/static ./.next/static
 # drops the empty folder, so copying it now would fail in CI).
 # The migrator, bundled into one file, and the committed migrations.
 COPY --from=build --chown=node:node /app/dist/migrate.mjs ./migrate.mjs
+COPY --from=build --chown=node:node /app/dist/sync-catalog.mjs ./sync-catalog.mjs
 COPY --chown=node:node lib/db/migrations ./migrations
 
 USER node

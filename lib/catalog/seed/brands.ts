@@ -1,0 +1,28 @@
+export type SeedBrand = { slug: string; name: string };
+
+export const brands: SeedBrand[] = [
+  { slug: "boss", name: "BOSS" },
+  { slug: "digitech", name: "DigiTech" },
+  { slug: "dunlop", name: "Dunlop" },
+  { slug: "electro-harmonix", name: "Electro-Harmonix" },
+  { slug: "ernie-ball", name: "Ernie Ball" },
+  { slug: "fender", name: "Fender" },
+  { slug: "focusrite", name: "Focusrite" },
+  { slug: "gibson", name: "Gibson" },
+  { slug: "ibanez", name: "Ibanez" },
+  { slug: "klon", name: "Klon" },
+  { slug: "line-6", name: "Line 6" },
+  { slug: "marshall", name: "Marshall" },
+  { slug: "mission-engineering", name: "Mission Engineering" },
+  { slug: "morningstar", name: "Morningstar" },
+  { slug: "mxr", name: "MXR" },
+  { slug: "orange", name: "Orange" },
+  { slug: "pro-co", name: "Pro Co" },
+  { slug: "radial", name: "Radial Engineering" },
+  { slug: "shure", name: "Shure" },
+  { slug: "strymon", name: "Strymon" },
+  { slug: "tc-electronic", name: "TC Electronic" },
+  { slug: "truetone", name: "Truetone" },
+  { slug: "voodoo-lab", name: "Voodoo Lab" },
+  { slug: "vox", name: "Vox" },
+];

@@ -11,9 +11,12 @@ cp .env.example .env   # then set BETTER_AUTH_SECRET
 npm install
 npm run db:up
 npm run db:migrate
+npm run catalog:sync
 npm run db:seed
 npm run dev
 ```
+
+If the dev server reloads a page over and over, delete `.next`: a production build left there by `npm run build` confuses `next dev`.
 
 Google sign-in needs `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`, with `http://localhost:3000/api/auth/callback/google` as a redirect URI.
 
@@ -26,6 +29,19 @@ npm run typecheck
 npm test              # unit and integration tests; needs the database
 npm run test:e2e      # needs the database
 npm run build
+```
+
+## Gear catalog
+
+The seeded catalog lives in `lib/catalog/seed/`. `npm run catalog:sync` loads it, and every deploy runs the same sync after migrations. It adds and updates seeded items, never touches items users submitted, and never deletes anything.
+
+Seed data must come from the maker's own page or manual, recorded in `sourceUrl`. Anything the maker doesn't state is left out and listed in `specs.unconfirmed`, which the gear page shows; never fill a gap from memory.
+
+Users submit gear at `/gear/submit`; admins review it at `/admin/catalog`. To make someone an admin, set their role in the database. In production:
+
+```bash
+docker exec mysignalchain-postgres psql -U mysignalchain -d mysignalchain \
+  -c "update users set role = 'admin' where handle = '<handle>'"
 ```
 
 ## Deploying

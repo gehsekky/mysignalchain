@@ -17,7 +17,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     // The dev server, because the test sign-in is compiled out of production builds.
-    command: `node scripts/migrate.mjs && npx next dev --port ${PORT}`,
+    command: `node scripts/migrate.mjs && npx tsx scripts/sync-catalog.ts && npx next dev --port ${PORT}`,
     url: `${baseURL}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

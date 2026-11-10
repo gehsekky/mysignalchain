@@ -34,6 +34,8 @@ export function buildAuthOptions(
         // Set only by onboarding. `input: false` keeps them out of the API.
         handle: { type: "string", required: false, input: false },
         ageCheckPassedAt: { type: "date", required: false, input: false },
+        // Granted by hand in the database; never settable through the API.
+        role: { type: "string", required: false, input: false },
       },
     },
     account: {

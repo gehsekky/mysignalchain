@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { isTestSignInEnabled } from "@/lib/auth/test-sign-in";
 
-const bodySchema = z.object({ email: z.email() });
+const bodySchema = z.object({
+  email: z.email(),
+  role: z.enum(["user", "admin"]).optional(),
+});
 
 export async function POST(request: Request) {
   if (!isTestSignInEnabled()) {
@@ -16,6 +19,15 @@ export async function POST(request: Request) {
   const user = await test.saveUser(
     test.createUser({ email: body.data.email, name: "Test User" }),
   );
+  if (body.data.role === "admin") {
+    const { getDb } = await import("@/lib/db/client");
+    const { users } = await import("@/lib/db/schema");
+    const { eq } = await import("drizzle-orm");
+    await getDb()
+      .update(users)
+      .set({ role: "admin" })
+      .where(eq(users.id, user.id));
+  }
   const { cookies } = await test.login({ userId: user.id });
 
   const response = Response.json({ userId: user.id });

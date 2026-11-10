@@ -93,15 +93,16 @@ The model separates a gear model in the catalog from a unit someone owns, and a 
 
 | Entity | Purpose | Key fields |
 | --- | --- | --- |
-| `users` | Accounts and profiles | handle (unique, null until onboarding is finished), display_name, bio, avatar_image_id, birth-year check passed |
+| `users` | Accounts and profiles | handle (unique, null until onboarding is finished), display_name, bio, avatar_image_id, birth-year check passed, role (user / admin; admins moderate the catalog and, later, reports) |
 | `follows` | One-way follows | follower_id, followee_id (composite key) |
 | `brands` | Manufacturers | name, slug |
 | `gear_categories` | Tree of categories | slug, name, parent_id (e.g. pedal > overdrive, amp > head, utility > splitter, power > supply, controller > expression pedal, controller > MIDI switcher) |
-| `gear_items` | Catalog entry for a model | brand_id, model_name, slug, category_id, variant_of_id, years, status (pending / approved / merged), merged_into_id, created_by, role (source / destination / null), routing_model (fixed / loop_switcher / channels / switch / programmable), routing_spec (JSONB), specs (JSONB, item-level specs) |
+| `gear_items` | Catalog entry for a model | brand_id, model_name, slug, category_id, variant_of_id, years, aliases (other names people search for, such as "tube screamer"), search_text (brand, model and aliases, trigram-indexed), status (pending / approved / rejected / merged; rejected because items are never deleted), merged_into_id, created_by, source_url (where seeded data was checked), role (source / destination / null), routing_model (fixed / loop_switcher / channels / switch / programmable), routing_spec (JSONB), specs (JSONB, item-level specs) |
 | `gear_ports` | Jacks on a gear item | gear_item_id, key (e.g. `in`, `out`, `send`, `return`, `exp_in`, `midi_in`, `midi_thru`, `dc_in`, `power_out_1`), direction (in / out), **signal_types** (one or more of audio / acoustic / expression / control / midi / power / usb, since a jack can be shared, such as MIDI/EXP), jack_group (logical ports on one physical jack, such as a TRS insert's send and return), spec (JSONB, validated per signal type), label |
 | `gear_port_paths` | How signal passes through a gear item | gear_item_id, from_port_key, to_port_key, active_when_unplugged (optional port key; the path applies only while that jack is empty). An amp has `in` → `send`, `return` → `out`, and `in` → `out` while `return` is unplugged |
-| `gear_controls` | Optional knob and switch schema | gear_item_id, key, label, kind (knob / switch / select), range or options |
-| `owned_gear` | A unit in a user's collection | user_id, gear_item_id, nickname, mods, notes, status (owned / sold / wishlist), visibility |
+| `gear_finishes` | Colors and finishes a model comes in, so owners pick from a list instead of typing | gear_item_id, slug, name (e.g. "Olympic White"), sort |
+| `gear_controls` | Optional knob and switch schema (added in M3, with settings) | gear_item_id, key, label, kind (knob / switch / select), range or options |
+| `owned_gear` | A unit in a user's collection | user_id, gear_item_id, finish_id (one of the item's finishes) or custom_finish (free text, for a finish that isn't listed), nickname, mods, notes, status (owned / sold / wishlist), visibility |
 | `images` | Every stored image | uploader_id, storage_key, width, height, source, license, attribution, moderation_status |
 | `gear_item_images` | Images shown on a catalog page | gear_item_id, image_id, sort |
 | `signal_chains` | The chain, across all versions | owner_id, public_id (random short id), slug, title, description, visibility, latest_version_id, forked_from_version_id |
@@ -125,7 +126,8 @@ Rules to enforce:
 - **Handle changes keep old links working.** A user can change their handle once every 30 days. `handle_history` redirects old handles to the current one and keeps them reserved for that account, so nobody else can take over those links. When an account is deleted, its current and old handles stay reserved for 90 days, then are released.
 - **Account deletion is a hard delete.** The user's chains and versions are permanently deleted, along with any reviews on them. Forks stay, because they hold their own copies of nodes and edges, and their `forked_from_version_id` becomes null. The user's reviews on other people's content are deleted; a review with replies keeps its place as a "deleted" placeholder with its text and author removed (so `reviews.author_id` is nullable). This logic lives in our own `lib/` module, called from Better Auth's `beforeDelete` hook, and deletion requires a recently signed-in session.
 - **Each node stores a snapshot of its gear.** On save, `gear_snapshot` records the display name, category, ports, port paths, controls, routing model and routing spec, plus the nickname and mods for owned gear. Custom nodes snapshot their default ports. The viewer, validation, loop tree, scenes and preview cards read only the snapshot, so catalog and collection edits can't change an old version.
-- **Catalog items are never hard-deleted.** `gear_item_id` stays on the node, so "which chains use this pedal" still works, and merged items follow `merged_into_id`.
+- **Catalog items are never hard-deleted.** `gear_item_id` stays on the node, so "which chains use this pedal" still works, and merged items follow `merged_into_id`. A merge can't target the item itself or an item that is already merged. When owned gear moves to the merged item, a finish with the same name on the target is kept; otherwise it becomes `custom_finish` with the old name.
+- **Seeded catalog data is loaded on every deploy.** The seed files in the repo are the source of truth for seeded items (`created_by` is null): a sync after migrations adds or updates them by brand and slug, never touches user-submitted items, and never deletes. Each seeded item records the manufacturer page its ports, power and finishes were checked against.
 - **`owned_gear_id` is only a link.** It has no foreign key, and the page links to the gear only if it still exists and is visible. Selling or removing gear never touches a version.
 - **Owned gear details are shown before they're published, and aren't forked.** The editor shows that the nickname and mods will be public on a public chain. Forks drop `owned_gear_id`, nickname and mods.
 - **Catalog updates are opt-in.** When a chain's gear has changed in the catalog, the editor offers "update gear data". Accepting matches ports by key, flags cables that no longer fit, and takes effect in the next saved version.
@@ -302,9 +304,9 @@ Repo, tooling, database, auth and deploy pipeline.
 Brands, categories and gear items with ports, browsable and searchable.
 
 - [ ] Seed data: about 50 common items across pedals, amps, cabs, guitars and utilities, each with a role, audio, control, MIDI and power ports and port paths, including empty-jack paths, shared jacks and speaker levels and impedance where they apply, with a few power supplies (Truetone CS6 and CS12, Voodoo Lab Pedal Power), a power doubler and polarity reverser, an expression pedal, a modeler, a combo amp and a microphone
-- [ ] Gear page at `/gear/{brand}/{model}` with images, ports and specs
+- [ ] Gear page at `/gear/{brand}/{model}` with ports, port paths, specs, finishes and the source of its data. Until photo uploads arrive in M2, it shows a generic illustration for its category
 - [ ] Search by brand and model with typo tolerance (Postgres trigram)
-- [ ] Signed-in users can submit a new item; it stays `pending` until an admin approves it
+- [ ] Signed-in users can submit a new item, choosing a port template (mono pedal, stereo pedal, amp with or without an FX loop, cab, source) plus power, extra jacks and finishes; it stays `pending`, visible only to its submitter and admins, until an admin approves or rejects it. Submissions are limited to 10 per user per day and 20 pending
 - [ ] Admin can merge duplicates; old URLs redirect to the merged item
 
 ### M2 — Collections and images
@@ -312,7 +314,7 @@ Brands, categories and gear items with ports, browsable and searchable.
 Users record the gear they own and upload photos.
 
 - [ ] Basic profile page at `/u/{handle}`, and a handle-change screen with `handle_history` redirects and the 30-day limit
-- [ ] Add, edit and remove owned gear with nickname, mods, notes and status (owned / sold / wishlist)
+- [ ] Add, edit and remove owned gear with finish (picked from the item's finishes, or "Other" with free text), nickname, mods, notes and status (owned / sold / wishlist)
 - [ ] Collection shown on the profile page, respecting each item's visibility
 - [ ] Photo upload to S3 through presigned URLs with EXIF stripped, resized variants and moderation status
 - [ ] Every image stores source, license and attribution, and attribution displays where required

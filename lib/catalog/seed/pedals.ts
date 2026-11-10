@@ -1,0 +1,465 @@
+/**
+ * Pedals. Every figure comes from the maker's page or manual at `sourceUrl`;
+ * anything the maker doesn't state is left out and listed in
+ * `specs.unconfirmed`. Never fill a gap from memory.
+ */
+import type { CatalogItemInput } from "../item";
+import {
+  audioIn,
+  audioOut,
+  dcIn,
+  dcOut,
+  expIn,
+  expOrControlIn,
+  midiIn,
+  midiOut,
+  path,
+  stereoThrough,
+  through,
+  usbDevice,
+} from "./jacks";
+
+const fixed = { model: "fixed" } as const;
+
+/** BOSS pages give jacks as "1/4-inch phone type" and power as the PSA adaptor, without polarity. */
+const bossUnconfirmed = ["power polarity", "TS or TRS jacks"];
+
+/** BOSS's stereo pedals label their jacks A (mono) and B. */
+const bossStereoJacks = (level: "instrument" = "instrument") => [
+  audioIn("in_l", { label: "Input A (mono)", channel: "left", level }),
+  audioIn("in_r", { label: "Input B", channel: "right", level }),
+  audioOut("out_l", { label: "Output A (mono)", channel: "left", level }),
+  audioOut("out_r", { label: "Output B", channel: "right", level }),
+];
+
+const strymonJacks = (expLabel: string) => [
+  audioIn("in_l", {
+    label: "Input L (mono)",
+    channel: "left",
+    connector: "ts",
+  }),
+  audioIn("in_r", { label: "Input R", channel: "right", connector: "ts" }),
+  audioOut("out_l", {
+    label: "Output L (mono)",
+    channel: "left",
+    connector: "ts",
+  }),
+  audioOut("out_r", { label: "Output R", channel: "right", connector: "ts" }),
+  expOrControlIn("exp", expLabel),
+  midiIn(),
+  midiOut(),
+  dcIn({ volts: 9, ma: 300, polarity: "center_negative" }),
+];
+
+export const pedals: CatalogItemInput[] = [
+  // ---- BOSS ---------------------------------------------------------------
+  {
+    brand: "boss",
+    slug: "sd-1",
+    modelName: "SD-1 Super OverDrive",
+    category: "overdrive",
+    years: "1981–present",
+    routing: fixed,
+    specs: { battery: "9V", bypass: "buffered", unconfirmed: bossUnconfirmed },
+    sourceUrl: "https://www.boss.info/us/products/sd-1/specifications/",
+    ports: [audioIn(), audioOut(), dcIn({ volts: 9, ma: 10 })],
+    paths: through(),
+  },
+  {
+    brand: "boss",
+    slug: "bd-2",
+    modelName: "BD-2 Blues Driver",
+    category: "overdrive",
+    years: "1995–present",
+    routing: fixed,
+    specs: { battery: "9V", unconfirmed: [...bossUnconfirmed, "bypass type"] },
+    sourceUrl: "https://www.boss.info/us/products/bd-2/specifications/",
+    ports: [audioIn(), audioOut(), dcIn({ volts: 9, ma: 20 })],
+    paths: through(),
+  },
+  {
+    brand: "boss",
+    slug: "ds-1",
+    modelName: "DS-1 Distortion",
+    category: "distortion",
+    years: "1978–present",
+    routing: fixed,
+    specs: { battery: "9V", unconfirmed: [...bossUnconfirmed, "bypass type"] },
+    sourceUrl: "https://www.boss.info/us/products/ds-1/specifications/",
+    ports: [audioIn(), audioOut(), dcIn({ volts: 9, ma: 10 })],
+    paths: through(),
+  },
+  {
+    brand: "boss",
+    slug: "ch-1",
+    modelName: "CH-1 Super Chorus",
+    category: "chorus",
+    routing: fixed,
+    specs: {
+      battery: "9V",
+      bypass: "buffered",
+      stereo: true,
+      unconfirmed: [...bossUnconfirmed, "which output is mono"],
+    },
+    sourceUrl: "https://www.boss.info/us/products/ch-1/specifications/",
+    ports: [
+      audioIn(),
+      audioOut("out_l", { label: "Output A", channel: "left" }),
+      audioOut("out_r", { label: "Output B", channel: "right" }),
+      dcIn({ volts: 9, ma: 55 }),
+    ],
+    paths: [path("in", "out_l"), path("in", "out_r")],
+  },
+  {
+    brand: "boss",
+    slug: "dd-8",
+    modelName: "DD-8 Digital Delay",
+    category: "delay",
+    routing: fixed,
+    specs: {
+      battery: "9V",
+      bypass: "buffered",
+      stereo: true,
+      unconfirmed: bossUnconfirmed,
+    },
+    sourceUrl: "https://www.boss.info/us/products/dd-8/specifications/",
+    ports: [
+      ...bossStereoJacks(),
+      expOrControlIn("tempo_exp", "Tempo/EXP"),
+      dcIn({ volts: 9, ma: 100 }),
+    ],
+    paths: stereoThrough(),
+  },
+  {
+    brand: "boss",
+    slug: "rv-6",
+    modelName: "RV-6 Reverb",
+    category: "reverb",
+    routing: fixed,
+    specs: {
+      battery: "9V",
+      stereo: true,
+      notes: "Feeding only Input B gives a 100% wet output, for parallel rigs.",
+      unconfirmed: [...bossUnconfirmed, "bypass type"],
+    },
+    sourceUrl: "https://www.boss.info/us/products/rv-6/specifications/",
+    ports: [
+      ...bossStereoJacks(),
+      expIn("exp", "EXP"),
+      dcIn({ volts: 9, ma: 95 }),
+    ],
+    paths: stereoThrough(),
+  },
+  {
+    brand: "boss",
+    slug: "tu-3",
+    modelName: "TU-3 Chromatic Tuner",
+    category: "tuner",
+    years: "2009–present",
+    routing: fixed,
+    specs: {
+      battery: "9V",
+      bypass: "buffered",
+      notes:
+        "Draws 80 mA with High Brightness on. The DC OUT jack powers other pedals from a PSA adaptor.",
+      unconfirmed: [
+        ...bossUnconfirmed,
+        "what the Bypass jack carries",
+        "DC OUT rating",
+      ],
+    },
+    sourceUrl: "https://www.boss.info/us/products/tu-3/specifications/",
+    ports: [
+      audioIn(),
+      audioOut(),
+      audioOut("bypass", { label: "Bypass" }),
+      dcIn({ volts: 9, ma: 20 }),
+      dcOut({ key: "dc_out", label: "DC out", volts: [9] }),
+    ],
+    paths: [path("in", "out"), path("in", "bypass"), path("dc_in", "dc_out")],
+  },
+
+  // ---- Electro-Harmonix ---------------------------------------------------
+  // EHX's 9.6 V adaptor is center negative (ehx.com/products/9-6v-200ma-usa).
+  {
+    brand: "electro-harmonix",
+    slug: "big-muff-pi",
+    modelName: "Big Muff Pi",
+    category: "fuzz",
+    years: "2000–present (NYC reissue)",
+    aliases: ["Big Muff"],
+    routing: fixed,
+    specs: { battery: "9V", bypass: "true" },
+    sourceUrl: "https://www.ehx.com/products/big-muff-pi/",
+    ports: [
+      audioIn("in", { label: "Input" }),
+      audioOut("out", { label: "Amplifier" }),
+      dcIn({
+        volts: [9, 9.6],
+        ma: 3,
+        polarity: "center_negative",
+        connector: "barrel_2_1",
+      }),
+    ],
+    paths: through(),
+  },
+  {
+    brand: "electro-harmonix",
+    slug: "small-clone",
+    modelName: "Small Clone",
+    category: "chorus",
+    years: "2000–present (reissue)",
+    routing: fixed,
+    specs: { battery: "9V", bypass: "true" },
+    sourceUrl: "https://www.ehx.com/products/small-clone/",
+    ports: [
+      audioIn(),
+      audioOut(),
+      dcIn({
+        volts: [9, 9.6],
+        ma: 12,
+        polarity: "center_negative",
+        connector: "barrel_2_1",
+      }),
+    ],
+    paths: through(),
+  },
+  {
+    brand: "electro-harmonix",
+    slug: "holy-grail-nano",
+    modelName: "Holy Grail Nano",
+    category: "reverb",
+    years: "2009–present",
+    routing: fixed,
+    specs: { bypass: "true" },
+    sourceUrl: "https://www.ehx.com/products/holy-grail-nano/",
+    ports: [
+      audioIn(),
+      audioOut("out", { label: "Amp" }),
+      dcIn({
+        volts: 9.6,
+        ma: 105,
+        polarity: "center_negative",
+        connector: "barrel_2_1",
+      }),
+    ],
+    paths: through(),
+  },
+
+  // ---- MXR and Dunlop (current draw from each manual) ---------------------
+  {
+    brand: "mxr",
+    slug: "phase-90",
+    modelName: "Phase 90",
+    category: "phaser",
+    aliases: ["M101"],
+    routing: fixed,
+    specs: { battery: "9V", bypass: "true", unconfirmed: ["power polarity"] },
+    sourceUrl: "https://www.jimdunlop.com/content/manuals/M101.pdf",
+    ports: [audioIn(), audioOut(), dcIn({ volts: 9, ma: 5 })],
+    paths: through(),
+  },
+  {
+    brand: "mxr",
+    slug: "carbon-copy",
+    modelName: "Carbon Copy Analog Delay",
+    category: "delay",
+    aliases: ["M169", "Carbon Copy"],
+    routing: fixed,
+    specs: { battery: "9V", bypass: "true", unconfirmed: ["power polarity"] },
+    sourceUrl: "https://www.jimdunlop.com/content/manuals/M169.pdf",
+    ports: [audioIn(), audioOut(), dcIn({ volts: 9, ma: 26 })],
+    paths: through(),
+  },
+  {
+    brand: "mxr",
+    slug: "dyna-comp",
+    modelName: "Dyna Comp",
+    category: "compressor",
+    aliases: ["M102"],
+    routing: fixed,
+    specs: { battery: "9V", bypass: "true", unconfirmed: ["power polarity"] },
+    sourceUrl: "https://www.jimdunlop.com/content/manuals/M102.pdf",
+    ports: [audioIn(), audioOut(), dcIn({ volts: 9, ma: 3.3 })],
+    paths: through(),
+  },
+  {
+    brand: "dunlop",
+    slug: "cry-baby-gcb95",
+    modelName: "Cry Baby Standard Wah GCB95",
+    category: "wah",
+    aliases: ["Cry Baby", "GCB95", "wah"],
+    routing: fixed,
+    specs: { battery: "9V", unconfirmed: ["power polarity", "bypass type"] },
+    sourceUrl: "https://www.jimdunlop.com/content/manuals/GCB95.pdf",
+    ports: [
+      audioIn("in", { label: "Instrument" }),
+      audioOut("out", { label: "Amplifier" }),
+      dcIn({ volts: 9, ma: 0.9 }),
+    ],
+    paths: through(),
+  },
+
+  // ---- DigiTech and TC Electronic ------------------------------------------
+  {
+    brand: "digitech",
+    slug: "whammy",
+    modelName: "Whammy (5th generation)",
+    category: "pitch",
+    aliases: ["Whammy 5"],
+    routing: fixed,
+    specs: {
+      bypass: "true",
+      notes:
+        "Built-in expression treadle. The maker gives the draw as under 265 mA.",
+      unconfirmed: ["power polarity"],
+    },
+    sourceUrl: "https://digitech.com/dp/whammy/",
+    ports: [
+      audioIn("in", { connector: "ts" }),
+      audioOut("out", { connector: "ts" }),
+      midiIn({ connector: "din5" }),
+      dcIn({ volts: 9, ma: 265 }),
+    ],
+    paths: through(),
+  },
+  {
+    brand: "tc-electronic",
+    slug: "ditto-looper",
+    modelName: "Ditto Looper",
+    category: "looper",
+    aliases: ["Ditto"],
+    routing: fixed,
+    specs: {
+      bypass: "true",
+      notes:
+        "Needs a 9 V adaptor rated above 100 mA. USB is for firmware updates.",
+      unconfirmed: ["current draw", "power polarity", "jack details"],
+    },
+    sourceUrl: "https://www.tcelectronic.com/en/products/0709-AFB",
+    ports: [audioIn(), audioOut(), usbDevice([]), dcIn({ volts: 9 })],
+    paths: through(),
+  },
+
+  // ---- Strymon (power from each manual; jacks are mono TS) ----------------
+  {
+    brand: "strymon",
+    slug: "mobius",
+    modelName: "Mobius",
+    category: "modulation",
+    routing: fixed,
+    specs: {
+      bypass: "selectable",
+      stereo: true,
+      notes:
+        "A rear switch picks stereo in/out or Pre/Post mode, which uses the two sides as separate paths.",
+      unconfirmed: ["MIDI connector"],
+    },
+    finishes: ["Dark Blue"],
+    sourceUrl: "https://www.strymon.net/product/mobius/",
+    ports: strymonJacks("EXP / tap"),
+    paths: stereoThrough(),
+  },
+  {
+    brand: "strymon",
+    slug: "timeline",
+    modelName: "TimeLine",
+    category: "delay",
+    routing: fixed,
+    specs: {
+      bypass: "selectable",
+      stereo: true,
+      notes:
+        "With the Loop switch on, Input R becomes the feedback-loop return and Output R the send.",
+      unconfirmed: ["MIDI connector"],
+    },
+    finishes: ["Gunmetal Gray"],
+    sourceUrl: "https://www.strymon.net/product/timeline/",
+    ports: strymonJacks("EXP / tap"),
+    paths: stereoThrough(),
+  },
+  {
+    brand: "strymon",
+    slug: "bigsky",
+    modelName: "BigSky",
+    category: "reverb",
+    aliases: ["Big Sky"],
+    routing: fixed,
+    specs: {
+      bypass: "selectable",
+      stereo: true,
+      unconfirmed: ["MIDI connector"],
+    },
+    finishes: ["Light Blue"],
+    sourceUrl: "https://www.strymon.net/product/bigsky/",
+    ports: strymonJacks("EXP / tap"),
+    paths: stereoThrough(),
+  },
+
+  // ---- Not yet checked against the maker (sites block automated reading) --
+  {
+    brand: "ibanez",
+    slug: "ts808",
+    modelName: "TS808 Tube Screamer",
+    category: "overdrive",
+    aliases: ["Tube Screamer", "TS-808", "808"],
+    routing: fixed,
+    specs: {
+      unconfirmed: ["current draw", "power polarity", "bypass type", "battery"],
+    },
+    ports: [audioIn(), audioOut(), dcIn({ volts: 9 })],
+    paths: through(),
+  },
+  {
+    brand: "ibanez",
+    slug: "ts9",
+    modelName: "TS9 Tube Screamer",
+    category: "overdrive",
+    variantOf: "ts808",
+    aliases: ["Tube Screamer", "TS-9"],
+    routing: fixed,
+    specs: {
+      unconfirmed: ["current draw", "power polarity", "bypass type", "battery"],
+    },
+    ports: [audioIn(), audioOut(), dcIn({ volts: 9 })],
+    paths: through(),
+  },
+  {
+    brand: "pro-co",
+    slug: "rat2",
+    modelName: "RAT2",
+    category: "distortion",
+    aliases: ["RAT", "RAT 2"],
+    routing: fixed,
+    specs: {
+      unconfirmed: ["current draw", "power polarity", "bypass type", "battery"],
+    },
+    ports: [audioIn(), audioOut(), dcIn({ volts: 9 })],
+    paths: through(),
+  },
+  {
+    brand: "klon",
+    slug: "ktr",
+    modelName: "KTR",
+    category: "overdrive",
+    aliases: ["Klon"],
+    routing: fixed,
+    specs: { unconfirmed: ["current draw", "power polarity", "bypass type"] },
+    ports: [audioIn(), audioOut(), dcIn({ volts: 9 })],
+    paths: through(),
+  },
+  {
+    brand: "ernie-ball",
+    slug: "vp-jr",
+    modelName: "VP Jr Volume Pedal",
+    category: "volume",
+    aliases: ["VP Jr", "volume pedal"],
+    routing: fixed,
+    specs: {
+      powerSource: "passive",
+      unconfirmed: ["jacks (such as a tuner output)"],
+    },
+    ports: [audioIn(), audioOut()],
+    paths: through(),
+  },
+];
