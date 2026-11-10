@@ -303,11 +303,11 @@ Repo, tooling, database, auth and deploy pipeline.
 
 Brands, categories and gear items with ports, browsable and searchable.
 
-- [ ] Seed data: about 50 common items across pedals, amps, cabs, guitars and utilities, each with a role, audio, control, MIDI and power ports and port paths, including empty-jack paths, shared jacks and speaker levels and impedance where they apply, with a few power supplies (Truetone CS6 and CS12, Voodoo Lab Pedal Power), a power doubler and polarity reverser, an expression pedal, a modeler, a combo amp and a microphone
-- [ ] Gear page at `/gear/{brand}/{model}` with ports, port paths, specs, finishes and the source of its data. Until photo uploads arrive in M2, it shows a generic illustration for its category
-- [ ] Search by brand and model with typo tolerance (Postgres trigram)
-- [ ] Signed-in users can submit a new item, choosing a port template (mono pedal, stereo pedal, amp with or without an FX loop, cab, source) plus power, extra jacks and finishes; it stays `pending`, visible only to its submitter and admins, until an admin approves or rejects it. Submissions are limited to 10 per user per day and 20 pending
-- [ ] Admin can merge duplicates; old URLs redirect to the merged item
+- [x] Seed data: about 50 common items across pedals, amps, cabs, guitars and utilities, each with a role, audio, control, MIDI and power ports and port paths, including empty-jack paths, shared jacks and speaker levels and impedance where they apply, with a few power supplies (Truetone CS6 and CS12, Voodoo Lab Pedal Power), a power doubler and polarity reverser, an expression pedal, a modeler, a combo amp and a microphone
+- [x] Gear page at `/gear/{brand}/{model}` with ports, port paths, specs, finishes and the source of its data. Until photo uploads arrive in M2, it shows a generic illustration for its category
+- [x] Search by brand and model with typo tolerance (Postgres trigram)
+- [x] Signed-in users can submit a new item, choosing a port template (mono pedal, stereo pedal, amp with or without an FX loop, cab, source) plus power, extra jacks and finishes; it stays `pending`, visible only to its submitter and admins, until an admin approves or rejects it. Submissions are limited to 10 per user per day and 20 pending
+- [x] Admin can merge duplicates; old URLs redirect to the merged item
 
 ### M2 — Collections and images
 
