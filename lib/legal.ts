@@ -3,8 +3,9 @@ export const CONTACT_EMAIL = "gehsekky@gmail.com";
 
 /**
  * The DMCA designated agent, as registered with the U.S. Copyright Office.
- * Null until the registration is done; member photo uploads stay off in
- * production until then (UPLOADS in deploy/host/deploy.sh).
+ * Null until the registration is done, just before the beta. While it's null,
+ * member photo uploads stay off in production even if the UPLOADS flag in
+ * deploy/host/deploy.sh is "on".
  */
 export const DMCA_AGENT: {
   name: string;

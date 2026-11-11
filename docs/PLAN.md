@@ -270,7 +270,7 @@ Upload handling:
 - A photo is published (copied to `public/`, the only prefix CloudFront can read) once it's approved and attached to something anyone can see. Anything else is served by the app after `canViewImage`. Unpublishing (rejection, deletion, a unit going private) deletes the public copies and invalidates the CDN cache straight away.
 - Member photos reach a gear page only when the owner offers them and an admin approves them for it; the page credits the uploader's handle. Admins can also add Creative Commons photos with author, license and source link.
 - The app has its own IAM user, limited to the images bucket and invalidations, because containers can't reach the instance role.
-- `UPLOADS` (off / admins / on) controls who can upload. In production, member uploads stay admin-only until the DMCA designated agent is listed in `lib/legal.ts`.
+- `UPLOADS` (off / admins / on) is the feature flag for who can upload. Production runs with `admins` until the beta: then the DMCA designated agent is registered and listed in `lib/legal.ts`, and the flag is set to `on`. As a safeguard, `on` acts as `admins` in production while no agent is listed.
 
 Before launch (legal checklist):
 

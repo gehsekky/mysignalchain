@@ -41,8 +41,10 @@ printf 'POSTGRES_PASSWORD=%s\n' "$PG_PASSWORD" > postgres.env.new
   printf 'GOOGLE_CLIENT_ID=%s\n' "$(param GOOGLE_CLIENT_ID)"
   printf 'GOOGLE_CLIENT_SECRET=%s\n' "$(param GOOGLE_CLIENT_SECRET)"
   # Photos (lib/images). The app's own narrowly scoped key: containers can't
-  # use the instance role. UPLOADS is off, admins or on; member uploads also
-  # stay admin-only until the DMCA agent is listed in lib/legal.ts.
+  # use the instance role.
+  # UPLOADS is the photo-upload feature flag: off, admins or on. Member uploads
+  # are off until beta; set "on" then, together with DMCA_AGENT in
+  # lib/legal.ts (without it, "on" still acts as "admins").
   printf 'IMAGE_STORAGE=s3\n'
   printf 'IMAGES_BUCKET=mysignalchain-images\n'
   printf 'IMAGES_REGION=%s\n' "$REGION"
@@ -51,7 +53,7 @@ printf 'POSTGRES_PASSWORD=%s\n' "$PG_PASSWORD" > postgres.env.new
   printf 'AWS_ACCESS_KEY_ID=%s\n' "$IMAGES_KEY_ID"
   printf 'AWS_SECRET_ACCESS_KEY=%s\n' "$IMAGES_KEY_SECRET"
   printf 'AWS_REGION=%s\n' "$REGION"
-  printf 'UPLOADS=%s\n' "on"
+  printf 'UPLOADS=%s\n' "admins"
 } > app.env.new
 mv postgres.env.new postgres.env
 mv app.env.new app.env
