@@ -45,3 +45,6 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /dist/
+
+# local image storage (lib/images, IMAGE_STORAGE=fs)
+/.data/

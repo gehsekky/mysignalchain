@@ -6,10 +6,19 @@
  * - A pending or approved item can be merged into a different approved item.
  *   Items already merged into it move to the new target, so redirects never
  *   chain. Catalog items are never deleted.
+ * - Merging moves owned units and gear page photos to the target. A unit's
+ *   finish maps to the target's finish with the same name; otherwise it
+ *   becomes a custom finish with the old name.
  */
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db/client";
-import { brands, gearCategories, gearItems, users } from "@/lib/db/schema";
+import {
+  brands,
+  gearCategories,
+  gearItemImages,
+  gearItems,
+  users,
+} from "@/lib/db/schema";
 
 export type ModerationResult =
   | { status: "done" }
@@ -110,6 +119,34 @@ export async function mergeItem(
       .update(gearItems)
       .set({ mergedIntoId: targetId, updatedAt: now })
       .where(eq(gearItems.mergedIntoId, itemId));
+    // Every expression on the right reads the row as it was before.
+    await tx.execute(sql`
+      UPDATE owned_gear AS og SET
+        gear_item_id = ${targetId},
+        finish_id = (
+          SELECT tf.id FROM gear_finishes sf
+          JOIN gear_finishes tf
+            ON tf.gear_item_id = ${targetId} AND lower(tf.name) = lower(sf.name)
+          WHERE sf.id = og.finish_id
+          ORDER BY tf.sort LIMIT 1
+        ),
+        custom_finish = CASE
+          WHEN og.finish_id IS NULL THEN og.custom_finish
+          WHEN EXISTS (
+            SELECT 1 FROM gear_finishes sf
+            JOIN gear_finishes tf
+              ON tf.gear_item_id = ${targetId} AND lower(tf.name) = lower(sf.name)
+            WHERE sf.id = og.finish_id
+          ) THEN NULL
+          ELSE (SELECT name FROM gear_finishes WHERE id = og.finish_id)
+        END,
+        updated_at = ${now}
+      WHERE og.gear_item_id = ${itemId}
+    `);
+    await tx
+      .update(gearItemImages)
+      .set({ gearItemId: targetId })
+      .where(eq(gearItemImages.gearItemId, itemId));
     await tx
       .update(gearItems)
       .set({

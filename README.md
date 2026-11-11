@@ -44,6 +44,24 @@ docker exec mysignalchain-postgres psql -U mysignalchain -d mysignalchain \
   -c "update users set role = 'admin' where handle = '<handle>'"
 ```
 
+## Photos
+
+Members upload photos of gear in their collection; admins review them at `/admin/images`, and can add Creative Commons photos to gear pages there. The code is in `lib/images/`.
+
+- **Upload:** the browser posts the file straight to storage with a one-off presigned form (15 MB, `incoming/{random}`). The app then processes it with `sharp`, one at a time: it rotates it upright, drops all metadata (GPS included), saves WebP versions at 400, 1200 and 2048 px under `private/{id}/`, and deletes the upload.
+- **Publishing:** a photo is copied to `public/{id}/`, which CloudFront serves at `images.mysignalchain.com`, once it's approved and attached to something anyone can see. Everything else is served by `/api/images/...` after the policy check. Unpublishing deletes the public copies and invalidates the CDN cache.
+- **Switch:** `UPLOADS` (`off`, `admins` or `on`, set in `deploy/host/deploy.sh`). In production, member uploads stay admin-only until the DMCA designated agent is filled in in `lib/legal.ts`.
+- **Locally:** files go to `.data/images` and a test-only route stands in for S3 (`IMAGE_STORAGE=fs`, the default).
+- **AWS access:** the app container can't use the instance role, so it has its own key for the `mysignalchain-app` IAM user (defined in `gehsekky-infra`), limited to the images bucket and CloudFront invalidations. The key lives in Parameter Store as `/mysignalchain/IMAGES_AWS_ACCESS_KEY_ID` and `/mysignalchain/IMAGES_AWS_SECRET_ACCESS_KEY`. To rotate it, create a new key, store it under those names, redeploy, then delete the old key:
+
+  ```bash
+  read -r ID SECRET < <(aws iam create-access-key --user-name mysignalchain-app \
+    --query 'AccessKey.[AccessKeyId,SecretAccessKey]' --output text)
+  aws ssm put-parameter --name /mysignalchain/IMAGES_AWS_ACCESS_KEY_ID --type SecureString --value "$ID" --overwrite
+  aws ssm put-parameter --name /mysignalchain/IMAGES_AWS_SECRET_ACCESS_KEY --type SecureString --value "$SECRET" --overwrite
+  unset ID SECRET
+  ```
+
 ## Deploying
 
 Pushing to `main` deploys once CI passes (`.github/workflows/deploy.yml`):

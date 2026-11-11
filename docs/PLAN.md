@@ -93,7 +93,7 @@ The model separates a gear model in the catalog from a unit someone owns, and a 
 
 | Entity | Purpose | Key fields |
 | --- | --- | --- |
-| `users` | Accounts and profiles | handle (unique, null until onboarding is finished), display_name, bio, avatar_image_id, birth-year check passed, role (user / admin; admins moderate the catalog and, later, reports) |
+| `users` | Accounts and profiles | handle (unique, null until onboarding is finished), display_name, bio (plain text, 160 characters), avatar_image_id (later; a letter avatar until then), birth-year check passed, role (user / admin; admins moderate the catalog and, later, reports) |
 | `follows` | One-way follows | follower_id, followee_id (composite key) |
 | `brands` | Manufacturers | name, slug |
 | `gear_categories` | Tree of categories | slug, name, parent_id (e.g. pedal > overdrive, amp > head, utility > splitter, power > supply, controller > expression pedal, controller > MIDI switcher) |
@@ -102,8 +102,9 @@ The model separates a gear model in the catalog from a unit someone owns, and a 
 | `gear_port_paths` | How signal passes through a gear item | gear_item_id, from_port_key, to_port_key, active_when_unplugged (optional port key; the path applies only while that jack is empty). An amp has `in` → `send`, `return` → `out`, and `in` → `out` while `return` is unplugged |
 | `gear_finishes` | Colors and finishes a model comes in, so owners pick from a list instead of typing | gear_item_id, slug, name (e.g. "Olympic White"), sort |
 | `gear_controls` | Optional knob and switch schema (added in M3, with settings) | gear_item_id, key, label, kind (knob / switch / select), range or options |
-| `owned_gear` | A unit in a user's collection | user_id, gear_item_id, finish_id (one of the item's finishes) or custom_finish (free text, for a finish that isn't listed), nickname, mods, notes, status (owned / sold / wishlist), visibility |
-| `images` | Every stored image | uploader_id, storage_key, width, height, source, license, attribution, moderation_status |
+| `owned_gear` | A unit in a user's collection | user_id, gear_item_id, finish_id (one of the item's finishes) or custom_finish (free text, for a finish that isn't listed), nickname, mods, notes, status (owned / sold / wishlist), visibility (private / public; private by default) |
+| `images` | Every stored image | uploader_id, widths (the stored WebP versions), width, height, source, license, attribution, source_url, status (pending / approved / rejected), published (copied to `public/` for the CDN), reviewed_by, reviewed_at, review_note |
+| `owned_gear_images` | Photos of a unit in someone's collection | owned_gear_id, image_id, offered_for_gear_page, sort |
 | `gear_item_images` | Images shown on a catalog page | gear_item_id, image_id, sort |
 | `signal_chains` | The chain, across all versions | owner_id, public_id (random short id), slug, title, description, visibility, latest_version_id, forked_from_version_id |
 | `chain_versions` | One immutable snapshot | chain_id, version_number, changelog, content_hash, created_at |
@@ -123,7 +124,7 @@ Rules to enforce:
 - **Takedowns hide first, then delete.** An active `version_takedowns` row hides the version through the policy module, without touching its content. It can be restored after a counter-notice; the version is permanently deleted only if the takedown stands.
 - **Handles are lowercase and restricted.** 3–30 characters: lowercase letters, digits and single hyphens, starting and ending with a letter or digit. Stored in lowercase, so `Andy` and `andy` are the same handle. A short blocklist (`admin`, `support`, `staff`, `moderator`, `mysignalchain` and similar) is enforced at sign-up and on change.
 - **Onboarding finishes the account.** Google sign-in creates the user before they've chosen a handle, so a required step after first sign-in collects the handle and the 13+ check. Until it's complete, the policy module blocks everything except onboarding. Failing the age check deletes the account.
-- **Handle changes keep old links working.** A user can change their handle once every 30 days. `handle_history` redirects old handles to the current one and keeps them reserved for that account, so nobody else can take over those links. When an account is deleted, its current and old handles stay reserved for 90 days, then are released.
+- **Handle changes keep old links working.** A user can change their handle once every 30 days. `handle_history` redirects old handles to the current one and keeps them reserved for that account, so nobody else can take over those links, by changing handle or at onboarding. A user may take back one of their own old handles. When an account is deleted, its current and old handles stay reserved for 90 days, then are released.
 - **Account deletion is a hard delete.** The user's chains and versions are permanently deleted, along with any reviews on them. Forks stay, because they hold their own copies of nodes and edges, and their `forked_from_version_id` becomes null. The user's reviews on other people's content are deleted; a review with replies keeps its place as a "deleted" placeholder with its text and author removed (so `reviews.author_id` is nullable). This logic lives in our own `lib/` module, called from Better Auth's `beforeDelete` hook, and deletion requires a recently signed-in session.
 - **Each node stores a snapshot of its gear.** On save, `gear_snapshot` records the display name, category, ports, port paths, controls, routing model and routing spec, plus the nickname and mods for owned gear. Custom nodes snapshot their default ports. The viewer, validation, loop tree, scenes and preview cards read only the snapshot, so catalog and collection edits can't change an old version.
 - **Catalog items are never hard-deleted.** `gear_item_id` stays on the node, so "which chains use this pedal" still works, and merged items follow `merged_into_id`. A merge can't target the item itself or an item that is already merged. When owned gear moves to the merged item, a finish with the same name on the target is kept; otherwise it becomes `custom_finish` with the old name.
@@ -265,6 +266,11 @@ Upload handling:
 - Strip EXIF metadata, especially GPS location, before storing.
 - Resize to standard sizes and reject non-image files and oversized uploads.
 - New images start as `pending` in the moderation queue. Only the uploader sees a photo until an admin approves it.
+- Browsers upload straight to S3 with a presigned POST (`incoming/`, 15 MB, JPEG, PNG or WebP). The app re-encodes to WebP at 400, 1200 and 2048 px under `private/`, deleting the original, and processes one image at a time on the shared host. A bucket rule expires unprocessed uploads after a day.
+- A photo is published (copied to `public/`, the only prefix CloudFront can read) once it's approved and attached to something anyone can see. Anything else is served by the app after `canViewImage`. Unpublishing (rejection, deletion, a unit going private) deletes the public copies and invalidates the CDN cache straight away.
+- Member photos reach a gear page only when the owner offers them and an admin approves them for it; the page credits the uploader's handle. Admins can also add Creative Commons photos with author, license and source link.
+- The app has its own IAM user, limited to the images bucket and invalidations, because containers can't reach the instance role.
+- `UPLOADS` (off / admins / on) controls who can upload. In production, member uploads stay admin-only until the DMCA designated agent is listed in `lib/legal.ts`.
 
 Before launch (legal checklist):
 
@@ -315,7 +321,7 @@ Users record the gear they own and upload photos.
 
 - [ ] Basic profile page at `/u/{handle}`, and a handle-change screen with `handle_history` redirects and the 30-day limit
 - [ ] Add, edit and remove owned gear with finish (picked from the item's finishes, or "Other" with free text), nickname, mods, notes and status (owned / sold / wishlist)
-- [ ] Collection shown on the profile page, respecting each item's visibility
+- [ ] Collection shown on the profile page, respecting each item's visibility (private by default, as decided at the M2 review)
 - [ ] Photo upload to S3 through presigned URLs with EXIF stripped, resized variants and moderation status
 - [ ] Every image stores source, license and attribution, and attribution displays where required
 - [ ] Only the uploader sees a photo until an admin approves it

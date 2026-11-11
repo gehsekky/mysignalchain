@@ -45,6 +45,8 @@ export const users = pgTable(
     role: text("role", { enum: ["user", "admin"] })
       .notNull()
       .default("user"),
+    // Plain text, shown on the profile page.
+    bio: text("bio"),
     ...timestamps,
   },
   (table) => [
@@ -53,6 +55,7 @@ export const users = pgTable(
       sql`${table.handle} ~ '^[a-z0-9]+(-[a-z0-9]+)*$' AND char_length(${table.handle}) BETWEEN 3 AND 30`,
     ),
     check("users_role", sql`${table.role} IN ('user', 'admin')`),
+    check("users_bio_length", sql`char_length(${table.bio}) <= 160`),
   ],
 );
 
@@ -297,4 +300,152 @@ export const gearFinishes = pgTable(
   (table) => [
     unique("gear_finishes_item_slug_unique").on(table.gearItemId, table.slug),
   ],
+);
+
+// ---------------------------------------------------------------------------
+// Profiles, collections and images. See "Data model" in docs/PLAN.md.
+// ---------------------------------------------------------------------------
+
+/**
+ * Old handles: they redirect to the user's current handle and stay reserved
+ * for that account. `release_at` is set when an account is deleted (M7).
+ */
+export const handleHistory = pgTable(
+  "handle_history",
+  {
+    oldHandle: text("old_handle").primaryKey(),
+    userId: text("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    changedAt: timestamp("changed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    releaseAt: timestamp("release_at", { withTimezone: true }),
+  },
+  (table) => [index("handle_history_user_id_idx").on(table.userId)],
+);
+
+export const ownedGear = pgTable(
+  "owned_gear",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    gearItemId: uuid("gear_item_id")
+      .notNull()
+      .references(() => gearItems.id),
+    // One of the item's finishes, or free text for one that isn't listed.
+    finishId: uuid("finish_id").references(() => gearFinishes.id),
+    customFinish: text("custom_finish"),
+    nickname: text("nickname"),
+    mods: text("mods"),
+    notes: text("notes"),
+    status: text("status", { enum: ["owned", "sold", "wishlist"] }).notNull(),
+    visibility: text("visibility", { enum: ["private", "public"] })
+      .notNull()
+      .default("private"),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "owned_gear_status",
+      sql`${table.status} IN ('owned', 'sold', 'wishlist')`,
+    ),
+    check(
+      "owned_gear_visibility",
+      sql`${table.visibility} IN ('private', 'public')`,
+    ),
+    check(
+      "owned_gear_one_finish",
+      sql`${table.finishId} IS NULL OR ${table.customFinish} IS NULL`,
+    ),
+    index("owned_gear_user_id_idx").on(table.userId),
+    index("owned_gear_gear_item_id_idx").on(table.gearItemId),
+    index("owned_gear_finish_id_idx").on(table.finishId),
+  ],
+);
+
+/**
+ * Every stored image. Files live in the images bucket under
+ * `pending/{id}/` until approved, then `public/{id}/` (see lib/images).
+ */
+export const images = pgTable(
+  "images",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    uploaderId: text("uploader_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    // Widths of the stored WebP versions, smallest first.
+    widths: integer("widths").array().notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    source: text("source", {
+      enum: ["user_upload", "brand_provided", "cc", "house"],
+    }).notNull(),
+    license: text("license").notNull(),
+    attribution: text("attribution"),
+    sourceUrl: text("source_url"),
+    status: text("status", {
+      enum: ["pending", "approved", "rejected"],
+    }).notNull(),
+    // Whether copies are under public/ for CloudFront. Photos that aren't
+    // published are served by the app after a policy check.
+    published: boolean("published").notNull().default(false),
+    reviewedBy: text("reviewed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNote: text("review_note"),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "images_source",
+      sql`${table.source} IN ('user_upload', 'brand_provided', 'cc', 'house')`,
+    ),
+    check(
+      "images_status",
+      sql`${table.status} IN ('pending', 'approved', 'rejected')`,
+    ),
+    index("images_uploader_id_idx").on(table.uploaderId),
+    index("images_status_idx").on(table.status),
+  ],
+);
+
+/** Photos of a unit in someone's collection. */
+export const ownedGearImages = pgTable(
+  "owned_gear_images",
+  {
+    imageId: uuid("image_id")
+      .primaryKey()
+      .references(() => images.id, { onDelete: "cascade" }),
+    ownedGearId: uuid("owned_gear_id")
+      .notNull()
+      .references(() => ownedGear.id, { onDelete: "cascade" }),
+    // The owner offers this photo for the catalog page of the gear item.
+    offeredForGearPage: boolean("offered_for_gear_page")
+      .notNull()
+      .default(false),
+    sort: integer("sort").notNull().default(0),
+  },
+  (table) => [
+    index("owned_gear_images_owned_gear_id_idx").on(table.ownedGearId),
+  ],
+);
+
+/** Photos shown on a catalog page. */
+export const gearItemImages = pgTable(
+  "gear_item_images",
+  {
+    imageId: uuid("image_id")
+      .primaryKey()
+      .references(() => images.id, { onDelete: "cascade" }),
+    gearItemId: uuid("gear_item_id")
+      .notNull()
+      .references(() => gearItems.id, { onDelete: "cascade" }),
+    sort: integer("sort").notNull().default(0),
+  },
+  (table) => [index("gear_item_images_gear_item_id_idx").on(table.gearItemId)],
 );

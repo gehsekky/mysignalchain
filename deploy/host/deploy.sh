@@ -27,7 +27,12 @@ param() {
     --with-decryption --query Parameter.Value --output text
 }
 umask 077
+# Plain assignments, so a missing parameter stops the deploy here (set -e
+# doesn't catch a failed $(...) inside printf's arguments).
 PG_PASSWORD=$(param POSTGRES_PASSWORD)
+IMAGES_DISTRIBUTION=$(param IMAGES_CDN_DISTRIBUTION_ID)
+IMAGES_KEY_ID=$(param IMAGES_AWS_ACCESS_KEY_ID)
+IMAGES_KEY_SECRET=$(param IMAGES_AWS_SECRET_ACCESS_KEY)
 printf 'POSTGRES_PASSWORD=%s\n' "$PG_PASSWORD" > postgres.env.new
 {
   printf 'DATABASE_URL=postgres://mysignalchain:%s@postgres:5432/mysignalchain\n' "$PG_PASSWORD"
@@ -35,6 +40,18 @@ printf 'POSTGRES_PASSWORD=%s\n' "$PG_PASSWORD" > postgres.env.new
   printf 'BETTER_AUTH_SECRET=%s\n' "$(param BETTER_AUTH_SECRET)"
   printf 'GOOGLE_CLIENT_ID=%s\n' "$(param GOOGLE_CLIENT_ID)"
   printf 'GOOGLE_CLIENT_SECRET=%s\n' "$(param GOOGLE_CLIENT_SECRET)"
+  # Photos (lib/images). The app's own narrowly scoped key: containers can't
+  # use the instance role. UPLOADS is off, admins or on; member uploads also
+  # stay admin-only until the DMCA agent is listed in lib/legal.ts.
+  printf 'IMAGE_STORAGE=s3\n'
+  printf 'IMAGES_BUCKET=mysignalchain-images\n'
+  printf 'IMAGES_REGION=%s\n' "$REGION"
+  printf 'IMAGES_CDN_URL=https://images.mysignalchain.com\n'
+  printf 'IMAGES_CDN_DISTRIBUTION_ID=%s\n' "$IMAGES_DISTRIBUTION"
+  printf 'AWS_ACCESS_KEY_ID=%s\n' "$IMAGES_KEY_ID"
+  printf 'AWS_SECRET_ACCESS_KEY=%s\n' "$IMAGES_KEY_SECRET"
+  printf 'AWS_REGION=%s\n' "$REGION"
+  printf 'UPLOADS=%s\n' "on"
 } > app.env.new
 mv postgres.env.new postgres.env
 mv app.env.new app.env

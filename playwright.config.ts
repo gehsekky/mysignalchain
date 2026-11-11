@@ -26,6 +26,9 @@ export default defineConfig({
       BETTER_AUTH_URL: baseURL,
       BETTER_AUTH_SECRET: "test-secret-that-is-at-least-32-characters",
       E2E_TEST_LOGIN_ENABLED: "true",
+      IMAGE_STORAGE: "fs",
+      IMAGE_DIR: ".data/e2e-images",
+      UPLOADS: "on",
     },
   },
 });

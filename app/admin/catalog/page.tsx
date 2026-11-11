@@ -97,7 +97,17 @@ export default async function CatalogReviewPage({
     typeof params.message === "string" ? params.message.slice(0, 200) : "";
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10">
-      <h1 className="text-3xl font-semibold tracking-tight">Catalog review</h1>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Catalog review
+        </h1>
+        <Link
+          href="/admin/images"
+          className="text-sm underline underline-offset-4"
+        >
+          Photo review
+        </Link>
+      </div>
       <Queue message={message} />
     </div>
   );

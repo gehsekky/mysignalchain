@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
+import { CONTACT_EMAIL } from "@/lib/legal";
 
 export const metadata: Metadata = { title: "Privacy · mysignalchain" };
 
 // Draft for the beta. Keep it in step with what the code actually does; the
 // final version comes in M7 (see docs/PLAN.md).
-const LAST_UPDATED = "November 9, 2026";
-const CONTACT_EMAIL = "gehsekky@gmail.com";
+const LAST_UPDATED = "November 10, 2026";
 
 export default function PrivacyPage() {
   return (
@@ -27,7 +27,16 @@ export default function PrivacyPage() {
           From Google, when you sign in: your name, email address and profile
           picture.
         </li>
-        <li>The handle you choose.</li>
+        <li>
+          The handle you choose, and the display name and short bio you can set
+          on your profile. These are public on your profile page.
+        </li>
+        <li>
+          The gear you add to your collection, with its finish, nickname, mods
+          and notes. Each item is private unless you choose to show it on your
+          profile.
+        </li>
+        <li>Photos you upload (see below).</li>
         <li>
           That you passed the 13-or-older check. Your birth month and year are
           used for the check and not stored.
@@ -41,6 +50,25 @@ export default function PrivacyPage() {
           IP addresses of requests, held briefly in memory to limit repeated
           sign-in attempts.
         </li>
+      </ul>
+
+      <h2>Photos</h2>
+      <ul>
+        <li>
+          Before a photo is stored, its metadata is removed, including any GPS
+          location, camera details and date. The original file is deleted right
+          after; only resized copies are kept.
+        </li>
+        <li>
+          New photos are checked by an admin. Until then only you and the
+          site&apos;s admins can see them.
+        </li>
+        <li>
+          Once approved, a photo is visible to anyone who can see the item
+          it&apos;s on. If you offer a photo for a gear page and an admin uses
+          it there, anyone can see it on that page, credited to your handle.
+        </li>
+        <li>Deleting a photo, or the item it&apos;s on, deletes its files.</li>
       </ul>
 
       <h2>Google sign-in</h2>
@@ -59,8 +87,8 @@ export default function PrivacyPage() {
 
       <h2>Where it&apos;s kept</h2>
       <p>
-        On Amazon Web Services servers in the United States. Database backups
-        are kept for 30 days.
+        On Amazon Web Services servers in the United States. Photos are served
+        through Amazon CloudFront. Database backups are kept for 30 days.
       </p>
 
       <h2>Beta</h2>

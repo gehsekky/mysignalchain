@@ -34,7 +34,7 @@ test("the health check reports ok", async ({ request }) => {
 
 test("a logged-out visitor sees the sign-in option", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Sign in" }).click();
+  await page.getByRole("main").getByRole("link", { name: "Sign in" }).click();
   await expect(
     page.getByRole("button", { name: "Continue with Google" }),
   ).toBeVisible();
@@ -96,7 +96,9 @@ test("failing the age check deletes the account", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/onboarding\/not-eligible$/);
   await page.goto("/");
-  await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+  await expect(
+    page.getByRole("main").getByRole("link", { name: "Sign in" }),
+  ).toBeVisible();
 });
 
 test("a user can sign out", async ({ page }) => {
@@ -104,5 +106,7 @@ test("a user can sign out", async ({ page }) => {
   await page.goto("/onboarding");
   await fillOnboarding(page, `leaver-${uniqueSuffix()}`, "1985");
   await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+  await expect(
+    page.getByRole("main").getByRole("link", { name: "Sign in" }),
+  ).toBeVisible();
 });

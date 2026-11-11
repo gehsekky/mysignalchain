@@ -15,6 +15,13 @@
       "when": 1794292028740,
       "tag": "0001_gear_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794363167305,
+      "tag": "0002_profiles_collections_images",
+      "breakpoints": true
     }
   ]
 }

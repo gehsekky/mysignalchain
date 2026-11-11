@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Database } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
 import { handleSchema } from "@/lib/handles";
+import { isReservedHandle } from "@/lib/handles/change";
 import { isOldEnough } from "./age";
 
 export const onboardingSchema = z.object({
@@ -47,6 +48,9 @@ export async function completeOnboarding(
     await db.delete(users).where(eq(users.id, userId));
     return { status: "too-young" };
   }
+
+  // Someone's old handle stays theirs; see lib/handles/change.ts.
+  if (await isReservedHandle(db, handle)) return { status: "handle-taken" };
 
   try {
     const updated = await db

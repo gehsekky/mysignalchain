@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
+import { removeFromGearPageAction } from "@/app/admin/images/actions";
 import { CategoryIcon } from "@/components/gear/category-icon";
+import { Photo } from "@/components/photos/photo";
+import { buttonVariants } from "@/components/ui/button";
 import { getViewer } from "@/lib/auth/viewer";
 import {
   describePortSpec,
@@ -15,7 +18,8 @@ import {
   type GearItemPage,
 } from "@/lib/catalog/queries";
 import { getDb } from "@/lib/db/client";
-import { canViewGearItem } from "@/lib/policy";
+import { gearPagePhotos, type GearPagePhoto } from "@/lib/images";
+import { canModerateImages, canViewGearItem, type Viewer } from "@/lib/policy";
 
 // proxy.ts already answers missing and hidden items with a 404 and merged
 // ones with a 308, before rendering. The page repeats the checks (for
@@ -39,11 +43,11 @@ async function loadItem(params: Props["params"]) {
     if (!target) notFound();
     permanentRedirect(`/gear/${target.brandSlug}/${target.slug}`);
   }
-  return item;
+  return { item, viewer };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const item = await loadItem(params);
+  const { item } = await loadItem(params);
   const name = `${item.brand.name} ${item.modelName}`;
   return {
     title: `${name} · mysignalchain`,
@@ -52,8 +56,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function GearPage({ params }: Props) {
-  const item = await loadItem(params);
+  const { item, viewer } = await loadItem(params);
   const specs = describeSpecs(item.specs);
+  const photos = await gearPagePhotos(getDb(), item.id);
+  const [cover, ...morePhotos] = photos;
+  const name = `${item.brand.name} ${item.modelName}`;
 
   return (
     <article className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10">
@@ -81,10 +88,24 @@ export default async function GearPage({ params }: Props) {
         )}
       </nav>
 
+      {cover && (
+        <figure className="flex flex-col gap-2">
+          <Photo
+            photo={cover}
+            alt={name}
+            sizes="(min-width: 768px) 736px, 100vw"
+            className="max-h-[28rem] w-full rounded-xl object-contain"
+          />
+          <PhotoCredit photo={cover} item={item} viewer={viewer} />
+        </figure>
+      )}
+
       <header className="flex items-start gap-5">
-        <div className="bg-muted flex size-24 shrink-0 items-center justify-center rounded-xl">
-          <CategoryIcon slug={item.topCategory.slug} className="size-12" />
-        </div>
+        {!cover && (
+          <div className="bg-muted flex size-24 shrink-0 items-center justify-center rounded-xl">
+            <CategoryIcon slug={item.topCategory.slug} className="size-12" />
+          </div>
+        )}
         <div className="flex flex-col gap-1">
           <p className="text-muted-foreground text-sm">{item.brand.name}</p>
           <h1 className="text-3xl font-semibold tracking-tight">
@@ -109,6 +130,38 @@ export default async function GearPage({ params }: Props) {
       </header>
 
       <StatusNote item={item} />
+
+      {item.status === "approved" && (
+        <Link
+          href={`/collection/add?gear=${item.brand.slug}/${item.slug}`}
+          className={buttonVariants({
+            variant: "outline",
+            className: "self-start",
+          })}
+        >
+          Add to my gear
+        </Link>
+      )}
+
+      {morePhotos.length > 0 && (
+        <section aria-label="More photos">
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {morePhotos.map((photo, i) => (
+              <li key={photo.id}>
+                <figure className="flex flex-col gap-1">
+                  <Photo
+                    photo={photo}
+                    alt={`${name}, photo ${i + 2}`}
+                    sizes="(min-width: 640px) 240px, 50vw"
+                    className="aspect-square w-full rounded-lg"
+                  />
+                  <PhotoCredit photo={photo} item={item} viewer={viewer} />
+                </figure>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {item.aliases.length > 0 && (
         <p className="text-sm">
@@ -374,5 +427,64 @@ function Source({ item }: { item: GearItemPage }) {
         <p>Not yet confirmed with the maker: {unconfirmed.join(", ")}.</p>
       )}
     </section>
+  );
+}
+
+function PhotoCredit({
+  photo,
+  item,
+  viewer,
+}: {
+  photo: GearPagePhoto;
+  item: GearItemPage;
+  viewer: Viewer | null;
+}) {
+  return (
+    <figcaption className="text-muted-foreground flex flex-wrap gap-x-3 text-xs">
+      {photo.source === "user_upload" ? (
+        <span>
+          Photo by{" "}
+          {photo.uploaderHandle ? (
+            <Link
+              href={`/u/${photo.uploaderHandle}`}
+              className="underline underline-offset-4"
+            >
+              @{photo.uploaderHandle}
+            </Link>
+          ) : (
+            "a former member"
+          )}
+        </span>
+      ) : (
+        <span>
+          Photo:{" "}
+          {photo.sourceUrl ? (
+            <a
+              href={photo.sourceUrl}
+              rel="noopener noreferrer nofollow"
+              className="underline underline-offset-4"
+            >
+              {photo.attribution ?? "source"}
+            </a>
+          ) : (
+            photo.attribution
+          )}
+          {photo.license ? `, ${photo.license}` : ""}
+        </span>
+      )}
+      {canModerateImages(viewer) && (
+        <form action={removeFromGearPageAction}>
+          <input type="hidden" name="imageId" value={photo.id} />
+          <input
+            type="hidden"
+            name="back"
+            value={`/gear/${item.brand.slug}/${item.slug}`}
+          />
+          <button type="submit" className="underline underline-offset-4">
+            Remove from this page
+          </button>
+        </form>
+      )}
+    </figcaption>
   );
 }

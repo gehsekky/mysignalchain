@@ -20,6 +20,7 @@ import {
   ne,
   notInArray,
   or,
+  sql,
 } from "drizzle-orm";
 import type { Database } from "@/lib/db/client";
 import {
@@ -375,19 +376,26 @@ export async function syncCatalog(
           .insert(gearPortPaths)
           .values(next.paths.map((p) => ({ ...p, gearItemId: id })));
       }
-      // Finishes: upsert by slug and drop the ones no longer listed.
-      // TODO(M2): once owned gear points at finishes, keep referenced ones.
-      await tx.delete(gearFinishes).where(
-        and(
-          eq(gearFinishes.gearItemId, id),
-          next.finishes.length
-            ? notInArray(
-                gearFinishes.slug,
-                next.finishes.map((f) => f.slug),
-              )
-            : undefined,
-        ),
+      // Finishes: upsert by slug and drop the ones no longer listed. Owned
+      // units on a dropped finish keep its name as a custom finish.
+      const dropped = and(
+        eq(gearFinishes.gearItemId, id),
+        next.finishes.length
+          ? notInArray(
+              gearFinishes.slug,
+              next.finishes.map((f) => f.slug),
+            )
+          : undefined,
       );
+      await tx.execute(sql`
+        UPDATE owned_gear AS og
+        SET custom_finish = gf.name, finish_id = NULL, updated_at = now()
+        FROM gear_finishes AS gf
+        WHERE og.finish_id = gf.id AND gf.id IN (
+          SELECT ${gearFinishes.id} FROM ${gearFinishes} WHERE ${dropped}
+        )
+      `);
+      await tx.delete(gearFinishes).where(dropped);
       for (const finish of next.finishes) {
         await tx
           .insert(gearFinishes)

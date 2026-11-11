@@ -1,6 +1,7 @@
 /**
- * Runs before gear item pages and the admin pages render, so missing or
- * hidden items get a real 404 and merged items a real 308. Pages stream, and
+ * Runs before gear item pages, profile pages and the admin pages render, so
+ * missing or hidden items get a real 404, and merged items and old handles a
+ * real 308. Pages stream, and
  * a streamed response is already 200 by the time the page itself could call
  * notFound() or redirect(). The pages still repeat these checks.
  */
@@ -9,9 +10,10 @@ import { getViewerFromHeaders } from "@/lib/auth/viewer";
 import { checkGearAccess } from "@/lib/catalog/access";
 import { getDb } from "@/lib/db/client";
 import { canModerateCatalog } from "@/lib/policy";
+import { checkProfileAccess } from "@/lib/profile/access";
 
 export const config = {
-  matcher: ["/gear/:brand/:model", "/admin/:path*"],
+  matcher: ["/gear/:brand/:model", "/admin/:path*", "/u/:path*"],
 };
 
 function notFound(request: NextRequest) {
@@ -28,11 +30,15 @@ export async function proxy(request: NextRequest) {
     return canModerateCatalog(viewer) ? NextResponse.next() : notFound(request);
   }
 
-  const [, brand, model] = parts;
-  if (!brand || !model) return NextResponse.next();
-  const access = await checkGearAccess(getDb(), brand, model, () =>
-    getViewerFromHeaders(request.headers),
-  );
+  const loadViewer = () => getViewerFromHeaders(request.headers);
+  let access;
+  if (parts[0] === "u") {
+    access = await checkProfileAccess(getDb(), parts.slice(1), loadViewer);
+  } else {
+    const [, brand, model] = parts;
+    if (!brand || !model) return NextResponse.next();
+    access = await checkGearAccess(getDb(), brand, model, loadViewer);
+  }
   if (access.kind === "redirect") {
     return NextResponse.redirect(new URL(access.to, request.url), 308);
   }

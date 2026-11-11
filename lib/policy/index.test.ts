@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  canEditOwnedGear,
   canModerateCatalog,
+  canModerateImages,
+  canUploadImages,
+  canViewImage,
+  canViewOwnedGear,
   canSubmitGear,
   canUseAccountFeatures,
   canViewGearItem,
@@ -74,5 +79,81 @@ describe("catalog submissions and moderation", () => {
     expect(canModerateCatalog(finished)).toBe(false);
     expect(canModerateCatalog(unfinishedAdmin)).toBe(false);
     expect(canModerateCatalog(null)).toBe(false);
+  });
+});
+
+describe("canViewOwnedGear", () => {
+  const approved = { status: "approved" as const, createdBy: null };
+  const pending = { status: "pending" as const, createdBy: finished.id };
+  const unit = (
+    visibility: "private" | "public",
+    gearItem: typeof approved | typeof pending = approved,
+  ) => ({ userId: finished.id, visibility, gearItem });
+
+  it("shows owners everything in their collection", () => {
+    expect(canViewOwnedGear(finished, unit("private"))).toBe(true);
+    expect(canViewOwnedGear(finished, unit("public", pending))).toBe(true);
+  });
+
+  it("hides private units from everyone else, admins included", () => {
+    expect(canViewOwnedGear(null, unit("private"))).toBe(false);
+    expect(canViewOwnedGear(admin, unit("private"))).toBe(false);
+  });
+
+  it("shows public units of public catalog items to anyone", () => {
+    expect(canViewOwnedGear(null, unit("public"))).toBe(true);
+  });
+
+  it("hides public units of pending catalog items from others", () => {
+    expect(canViewOwnedGear(null, unit("public", pending))).toBe(false);
+  });
+
+  it("doesn't treat an unfinished account as the owner", () => {
+    expect(
+      canViewOwnedGear({ ...finished, handle: null }, unit("private")),
+    ).toBe(false);
+  });
+
+  it("lets only the owner edit", () => {
+    expect(canEditOwnedGear(finished, { userId: finished.id })).toBe(true);
+    expect(canEditOwnedGear(admin, { userId: finished.id })).toBe(false);
+    expect(canEditOwnedGear(null, { userId: finished.id })).toBe(false);
+  });
+});
+
+describe("canUploadImages", () => {
+  it("follows the uploads switch", () => {
+    expect(canUploadImages(finished, "on")).toBe(true);
+    expect(canUploadImages(finished, "admins")).toBe(false);
+    expect(canUploadImages(admin, "admins")).toBe(true);
+    expect(canUploadImages(admin, "off")).toBe(false);
+    expect(canUploadImages(null, "on")).toBe(false);
+  });
+});
+
+describe("canViewImage", () => {
+  const image = (status: "pending" | "approved" | "rejected") => ({
+    status,
+    uploaderId: finished.id,
+  });
+  const other: Viewer = { ...finished, id: "2", handle: "other" };
+
+  it("shows pending and rejected photos only to the uploader and admins", () => {
+    for (const status of ["pending", "rejected"] as const) {
+      expect(canViewImage(finished, image(status), true)).toBe(true);
+      expect(canViewImage(admin, image(status), true)).toBe(true);
+      expect(canViewImage(other, image(status), true)).toBe(false);
+      expect(canViewImage(null, image(status), true)).toBe(false);
+    }
+  });
+
+  it("shows approved photos to whoever can see what they're attached to", () => {
+    expect(canViewImage(null, image("approved"), true)).toBe(true);
+    expect(canViewImage(null, image("approved"), false)).toBe(false);
+  });
+
+  it("lets only admins moderate", () => {
+    expect(canModerateImages(admin)).toBe(true);
+    expect(canModerateImages(finished)).toBe(false);
   });
 });
