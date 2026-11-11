@@ -29,7 +29,7 @@ The MVP is everything needed for one guitarist to build a chain, share a link, a
 | Area | MVP | Later |
 | --- | --- | --- |
 | Accounts | Google sign-in, unique handle, profile page, 13+ age gate, account deletion and data export | Email link sign-in, two-factor |
-| Gear catalog | Brands, categories, gear items with ports; user submissions with a moderation queue; search | Brand claim program, affiliate price feeds, bass and keys categories, catalog admin panel (merge duplicate brands and items, delete unused ones; brand aliases and "did you mean" brand suggestions on submit) |
+| Gear catalog | Brands, categories, gear items with ports; user submissions with a moderation queue; search | Brand claim program, affiliate price feeds, bass and keys categories, catalog admin panel (merge duplicate brands and items, delete only what nothing references), brand merges (items move to the surviving brand, old brand links redirect), brand pages with more brand information (website, country, description, logo) and the brand's gear, brand aliases and "did you mean" brand suggestions on submit |
 | Collections | Gear I own, with notes and mods; wishlist | Gear history (bought/sold timeline) |
 | Signal chains | Graph editor, immutable versions, fork a chain, custom nodes for gear not in the catalog | Modeler preset import (Helix, Quad Cortex, Fractal), embeds, intentional feedback loops |
 | Viewing and sharing | Public / unlisted / private, share links, read-only graph viewer, mobile list view, per-version preview images, scene picker | Version diff view, embeddable widget |
