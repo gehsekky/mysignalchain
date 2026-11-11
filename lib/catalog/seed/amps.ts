@@ -372,4 +372,22 @@ export const amps: CatalogItemInput[] = [
     specs: { powerSource: "passive", unconfirmed: ["finishes", "pickups"] },
     ports: [guitarOut()],
   },
+  {
+    // Specs pasted from the PRS page (the site blocks automated reading).
+    brand: "prs",
+    slug: "se-hollowbody-standard",
+    modelName: "SE Hollowbody Standard",
+    category: "electric-guitar",
+    aliases: ["SE Hollowbody"],
+    role: "source",
+    routing: fixed,
+    specs: {
+      notes:
+        'Hollowbody, all mahogany, set neck, 25" scale, 22 frets. Two PRS 58/15 LT "S" pickups; volume and tone with a 3-way pickup toggle.',
+      unconfirmed: ["finishes", "output jack"],
+    },
+    sourceUrl:
+      "https://prsguitars.com/electrics/model/se_hollowbody_standard_2025",
+    ports: [guitarOut()],
+  },
 ];

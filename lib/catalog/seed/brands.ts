@@ -18,6 +18,7 @@ export const brands: SeedBrand[] = [
   { slug: "mxr", name: "MXR" },
   { slug: "orange", name: "Orange" },
   { slug: "pro-co", name: "Pro Co" },
+  { slug: "prs", name: "PRS" },
   { slug: "radial", name: "Radial Engineering" },
   { slug: "shure", name: "Shure" },
   { slug: "strymon", name: "Strymon" },
