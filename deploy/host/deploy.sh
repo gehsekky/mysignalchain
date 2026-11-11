@@ -52,8 +52,9 @@ systemctl daemon-reload
 systemctl enable -q --now mysignalchain-backup.timer
 log "backup timer installed"
 
-# 2. Pull the new image. The previous one is pulled again on rollback, since
-# Pansori's deploy prunes images that no running container uses.
+# 2. Pull the new image. Rollback pulls the previous one again in case it's
+# gone from the host; ECR keeps the newest five (gehsekky-infra,
+# modules/ecr_repository).
 CURRENT=$(sed -n 's/^APP_IMAGE=//p' .env 2>/dev/null || true)
 aws ecr get-login-password --region "$REGION" \
   | docker login --username AWS --password-stdin "${IMAGE%%/*}" >/dev/null
